@@ -9,6 +9,9 @@
 
 #include <StorageKit.h>
 
+static const char *K_FIELD_CLIP_NAME = "be:clip_name";
+static const char *K_FIELD_ACTIONS = "be:actions";
+
 class DNDEncoder {
     BMessage *msg;
 
@@ -30,10 +33,14 @@ class DNDEncoder {
         }
     }
 public:
-    DNDEncoder(BMessage *msg)
+    DNDEncoder(BMessage *msg, const char *clipName)
         :msg(msg)
     {
-        // nothing yet
+        msg->AddString(K_FIELD_CLIP_NAME, clipName);
+        msg->AddInt32(K_FIELD_ACTIONS, B_COPY_TARGET);
+        msg->AddInt32(K_FIELD_ACTIONS, B_MOVE_TARGET);
+        msg->AddInt32(K_FIELD_ACTIONS, B_TRASH_TARGET);
+        msg->AddInt32(K_FIELD_ACTIONS, B_LINK_TARGET);
     }
     void addTextFormat(const char *text) {
         msg->SetData("text/plain", B_MIME_DATA, text, strlen(text));
@@ -137,7 +144,7 @@ BRect intersectRects(BRect a, BRect b)
 bool DragSourceList::InitiateDrag(BPoint point, int32 index, bool wasSelected)
 {
     BMessage bMsg(B_SIMPLE_DATA);
-    DNDEncoder encoder(&bMsg);
+    DNDEncoder encoder(&bMsg, items[index].label);
     items[index].createMsg(&encoder); // populate the message with the item-specific data
 
     // move frame to where it needs to be
