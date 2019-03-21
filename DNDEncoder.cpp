@@ -161,17 +161,3 @@ void DNDEncoder::addFileContents(FileContent_t *files, int numFiles)
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
