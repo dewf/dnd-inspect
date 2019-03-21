@@ -4,7 +4,7 @@ project(dnd-inspect)
 set(CMAKE_CXX_STANDARD 11)
 
 link_directories("/develop/lib")
-link_libraries(be)
+link_libraries(be translation media)
 
 set(SOURCE_FILES
         "main.cpp"
@@ -18,6 +18,8 @@ set(SOURCE_FILES
         "DropTargetView.cpp"
         "DragSourceList.h"
         "DragSourceList.cpp"
+        "DNDEncoder.h"
+        "DNDEncoder.cpp"
         )
 
 add_executable(dnd-inspect ${SOURCE_FILES})

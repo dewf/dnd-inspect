@@ -1,74 +1,12 @@
 #include "DragSourceList.h"
 
 #include <stdio.h>
-#include <cstring>
 
 #include <Screen.h>
 #include <Bitmap.h>
 #include <algorithm>
 
-#include <StorageKit.h>
-
-static const char *K_FIELD_CLIP_NAME = "be:clip_name";
-static const char *K_FIELD_ACTIONS = "be:actions";
-
-class DNDEncoder {
-    BMessage *msg;
-
-    status_t readFileData(BFile *file, char **buffer, off_t *length) {
-        if (file->GetSize(length) == B_OK) {
-            *buffer = new char[*length];
-            file->Read(*buffer, *length);
-            return B_OK;
-        } else {
-            return B_ERROR;
-        }
-    }
-
-    void addFileRef(const char *path) {
-        BEntry entry(path);
-        entry_ref ref;
-        if (entry.GetRef(&ref) == B_OK) {
-            msg->AddRef("refs", &ref);
-        }
-    }
-public:
-    DNDEncoder(BMessage *msg, const char *clipName)
-        :msg(msg)
-    {
-        msg->AddString(K_FIELD_CLIP_NAME, clipName);
-        msg->AddInt32(K_FIELD_ACTIONS, B_COPY_TARGET);
-        msg->AddInt32(K_FIELD_ACTIONS, B_MOVE_TARGET);
-        msg->AddInt32(K_FIELD_ACTIONS, B_TRASH_TARGET);
-        msg->AddInt32(K_FIELD_ACTIONS, B_LINK_TARGET);
-    }
-    void addTextFormat(const char *text) {
-        msg->SetData("text/plain", B_MIME_DATA, text, strlen(text));
-    }
-    void addTextFormat(BFile *file) {
-        char *buffer;
-        off_t length;
-        if (readFileData(file, &buffer, &length) == B_OK) {
-            msg->SetData("text/plain", B_MIME_DATA, buffer, length);
-            delete[] buffer;
-        }
-    }
-    void addColor(rgb_color color) {
-        msg->SetData("RGBColor", B_RGB_COLOR_TYPE, &color, sizeof(color));
-    }
-
-    void addFileList(const char *fnames[], int count) {
-        for (int i=0; i< count; i++) {
-            addFileRef(fnames[i]);
-        }
-    }
-    void addMP3(const char *path) {
-        addFileRef(path);
-    }
-    void addPNG(const char *path) {
-        addFileRef(path);
-    }
-};
+#include "DNDEncoder.h"
 
 struct formatItem_t {
     const char *label;
@@ -98,21 +36,21 @@ static void multipleFilesFormat(DNDEncoder *encoder) {
     encoder->addFileList(fnames, 4);
 }
 
-static void mp3DataFormat(DNDEncoder *encoder) {
+static void audioFormat(DNDEncoder *encoder) {
     encoder->addMP3("_testcontent/bachfugue.mp3");
 }
 
-static void pngDataFormat(DNDEncoder *encoder) {
+static void bitmapFormat(DNDEncoder *encoder) {
     encoder->addPNG("_testcontent/be_icons.png");
 }
 
 formatItem_t items[] {
     {"short text", shortTextFormat},
     {"RGB color", colorFormat},
-    {"long text", longTextFormat},
     {"multiple file refs", multipleFilesFormat},
-    {"mp3 data", mp3DataFormat},
-    {"png data", pngDataFormat},
+    {"long text (simple + negotiated)", longTextFormat},
+    {"bitmap data (ref + negotiated)", bitmapFormat},
+    {"audio data (negotiated)", audioFormat},
 };
 
 DragSourceList::DragSourceList(BRect r)
