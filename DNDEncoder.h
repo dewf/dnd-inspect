@@ -11,7 +11,7 @@ class DNDEncoder {
 
     status_t readFileData(BFile *file, char **buffer, off_t *length);
     void addFileRef(const char *path);
-    void addTranslations(BPositionIO *source, const char *nativeMIME, const char *nativeDesc);
+    //void addTranslations(BPositionIO *source, const char *nativeMIME, const char *nativeDesc);
     void addNegotiatedPrologue();
 public:
     struct FileContent_t {

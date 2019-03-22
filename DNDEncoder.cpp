@@ -64,15 +64,17 @@ public:
     virtual void finalizeDrop(int32 action, const char *mimeType, BPositionIO *outStream) = 0;
 };
 
-class BitmapFinalizer : public DropFinalizer {
+
+
+class TranslationKitFinalizer : public DropFinalizer {
     BMallocIO storage;
 public:
-    BitmapFinalizer(BPositionIO *file, BMessage *msg) {
+    TranslationKitFinalizer(BPositionIO *file, BMessage *msg, int32 baselineTypeCode, const char *mimeType, const char *desc) {
         storage.SetBlockSize(64 * 1024);
         auto roster = BTranslatorRoster::Default();
-        if (roster->Translate(file, nullptr, nullptr, &storage, B_TRANSLATOR_BITMAP) == B_OK) {
+        if (roster->Translate(file, nullptr, nullptr, &storage, baselineTypeCode) == B_OK) {
             storage.Seek(0, SEEK_SET); // rewind
-            addTranslations(msg, &storage, "image/x-be-bitmap", "Be Bitmap Format");
+            addTranslations(msg, &storage, mimeType, desc);
         }
     }
 
@@ -85,50 +87,7 @@ public:
             // convert to whatever the user asked for
             auto typeCode = mimeToTypeCode[mimeType];
             printf("converting to typecode: %d\n", typeCode);
-            auto roster = BTranslatorRoster::Default();
-            if (roster->Translate(&storage, nullptr, nullptr, outStream, typeCode) == B_OK) {
-                printf("successfully produced target type [%s]\n", mimeType);
-            } else {
-                printf("finalizeDropAsFile: failed to produce target type [%s]\n", mimeType);
-            }
-            break;
-        }
-        default:
-            printf("not sure what to do for link/trash yet\n");
-        }
-    }
-};
 
-
-class TextFinalizer : public DropFinalizer {
-    BMallocIO storage;
-public:
-    TextFinalizer(BPositionIO *file, BMessage *msg) {
-        // attempting to the use the Translation Kit to provide more text formats
-        // ... doesn't do much (besides providing the "text/x-vnd.Be-stxt" format)
-        // but in theory this could be a useful step
-        storage.SetBlockSize(16 * 1024);
-        auto roster = BTranslatorRoster::Default();
-        // translate the incoming data (from 'file') to B_TRANSLATOR_TEXT and store in internal storage
-        if (roster->Translate(file, nullptr, nullptr, &storage, B_TRANSLATOR_TEXT) == B_OK) {
-            storage.Seek(0, SEEK_SET); // rewind for later
-
-            // add the translation type map to the drag message + store the translation codes internally
-            //  (a map of mime types to type codes)
-            //   so we can easily translate to the requested format in finalizeDrop()
-            addTranslations(msg, &storage, "text/plain", "Plain text file"); // B_TRANSLATOR_TEXT -> text/plain
-        }
-    }
-
-    void finalizeDrop(int32 action, const char *mimeType, BPositionIO *outStream) override
-    {
-        switch(action) {
-        case B_COPY_TARGET:
-        case B_MOVE_TARGET:
-        {
-            // convert to whatever the user asked for
-            auto typeCode = mimeToTypeCode[mimeType];
-            printf("converting to typecode: %d\n", typeCode);
             auto roster = BTranslatorRoster::Default();
             if (roster->Translate(&storage, nullptr, nullptr, outStream, typeCode) == B_OK) {
                 printf("successfully produced target type [%s]\n", mimeType);
@@ -169,41 +128,41 @@ void DNDEncoder::addFileRef(const char *path)
     }
 }
 
-void DNDEncoder::addTranslations(BPositionIO *source, const char *nativeMIME, const char *nativeDesc)
-{
-    static auto roster = BTranslatorRoster::Default();
+//void DNDEncoder::addTranslations(BPositionIO *source, const char *nativeMIME, const char *nativeDesc)
+//{
+//    static auto roster = BTranslatorRoster::Default();
 
-    msg->AddString(K_FIELD_TYPES, nativeMIME);
-    msg->AddString(K_FIELD_FILETYPES, nativeMIME);
-    msg->AddString(K_FIELD_TYPE_DESCS, nativeDesc);
+//    msg->AddString(K_FIELD_TYPES, nativeMIME);
+//    msg->AddString(K_FIELD_FILETYPES, nativeMIME);
+//    msg->AddString(K_FIELD_TYPE_DESCS, nativeDesc);
 
-    translator_info *info;
-    int32 numInfo;
-    if (roster->GetTranslators(source, nullptr, &info, &numInfo) == B_OK) {
-        for (int32 i=0; i< numInfo; i++) {
-            const translation_format *formats;
-            int32 count;
-            if (roster->GetOutputFormats(info[i].translator, &formats, &count) == B_OK) {
-                for (int32 j = 0; j< count; j++) {
-                    bool isNativeType = !strcmp(formats[j].MIME, nativeMIME);
-                    if (isNativeType) {
-                        // already been added
-                        continue;
-                    } else {
-                        msg->AddString(K_FIELD_TYPES, formats[j].MIME);
-                        msg->AddString(K_FIELD_FILETYPES, formats[j].MIME);
-                        msg->AddString(K_FIELD_TYPE_DESCS, formats[j].name);
-                    }
-                }
-            }
-        }
-        // add final type indicating we support files
-        msg->AddString(K_FIELD_TYPES, B_FILE_MIME_TYPE);
+//    translator_info *info;
+//    int32 numInfo;
+//    if (roster->GetTranslators(source, nullptr, &info, &numInfo) == B_OK) {
+//        for (int32 i=0; i< numInfo; i++) {
+//            const translation_format *formats;
+//            int32 count;
+//            if (roster->GetOutputFormats(info[i].translator, &formats, &count) == B_OK) {
+//                for (int32 j = 0; j< count; j++) {
+//                    bool isNativeType = !strcmp(formats[j].MIME, nativeMIME);
+//                    if (isNativeType) {
+//                        // already been added
+//                        continue;
+//                    } else {
+//                        msg->AddString(K_FIELD_TYPES, formats[j].MIME);
+//                        msg->AddString(K_FIELD_FILETYPES, formats[j].MIME);
+//                        msg->AddString(K_FIELD_TYPE_DESCS, formats[j].name);
+//                    }
+//                }
+//            }
+//        }
+//        // add final type indicating we support files
+//        msg->AddString(K_FIELD_TYPES, B_FILE_MIME_TYPE);
 
-        // our responsibility to free
-        delete[] info;
-    }
-}
+//        // our responsibility to free
+//        delete[] info;
+//    }
+//}
 
 void DNDEncoder::addNegotiatedPrologue()
 {
@@ -247,7 +206,7 @@ void DNDEncoder::addTextFormat(BFile *file)
     // negotiated content
     addNegotiatedPrologue();
 
-    finalizer = new TextFinalizer(file, msg); // adds more stuff to msg
+    finalizer = new TranslationKitFinalizer(file, msg, B_TRANSLATOR_TEXT, "text/plain", "Plain text file");
 }
 
 void DNDEncoder::addColor(rgb_color color)
@@ -270,7 +229,7 @@ void DNDEncoder::addBitmap(const char *path)
     addNegotiatedPrologue();
 
     BFile file(path, B_READ_ONLY);
-    finalizer = new BitmapFinalizer(&file, msg);
+    finalizer = new TranslationKitFinalizer(&file, msg, B_TRANSLATOR_BITMAP, "image/x-be-bitmap", "Be Bitmap Format");
 }
 
 void DNDEncoder::addFileContents(FileContent_t *files, int numFiles)
