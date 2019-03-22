@@ -128,42 +128,6 @@ void DNDEncoder::addFileRef(const char *path)
     }
 }
 
-//void DNDEncoder::addTranslations(BPositionIO *source, const char *nativeMIME, const char *nativeDesc)
-//{
-//    static auto roster = BTranslatorRoster::Default();
-
-//    msg->AddString(K_FIELD_TYPES, nativeMIME);
-//    msg->AddString(K_FIELD_FILETYPES, nativeMIME);
-//    msg->AddString(K_FIELD_TYPE_DESCS, nativeDesc);
-
-//    translator_info *info;
-//    int32 numInfo;
-//    if (roster->GetTranslators(source, nullptr, &info, &numInfo) == B_OK) {
-//        for (int32 i=0; i< numInfo; i++) {
-//            const translation_format *formats;
-//            int32 count;
-//            if (roster->GetOutputFormats(info[i].translator, &formats, &count) == B_OK) {
-//                for (int32 j = 0; j< count; j++) {
-//                    bool isNativeType = !strcmp(formats[j].MIME, nativeMIME);
-//                    if (isNativeType) {
-//                        // already been added
-//                        continue;
-//                    } else {
-//                        msg->AddString(K_FIELD_TYPES, formats[j].MIME);
-//                        msg->AddString(K_FIELD_FILETYPES, formats[j].MIME);
-//                        msg->AddString(K_FIELD_TYPE_DESCS, formats[j].name);
-//                    }
-//                }
-//            }
-//        }
-//        // add final type indicating we support files
-//        msg->AddString(K_FIELD_TYPES, B_FILE_MIME_TYPE);
-
-//        // our responsibility to free
-//        delete[] info;
-//    }
-//}
-
 void DNDEncoder::addNegotiatedPrologue()
 {
     msg->AddPointer(K_FIELD_ORIGINATOR, this); // so the main window can easily forward replies to us
