@@ -64,12 +64,46 @@ public:
     virtual void finalizeDrop(int32 action, const char *mimeType, BPositionIO *outStream) = 0;
 };
 
+class BitmapFinalizer : public DropFinalizer {
+    BMallocIO storage;
+public:
+    BitmapFinalizer(BPositionIO *file, BMessage *msg) {
+        storage.SetBlockSize(64 * 1024);
+        auto roster = BTranslatorRoster::Default();
+        if (roster->Translate(file, nullptr, nullptr, &storage, B_TRANSLATOR_BITMAP) == B_OK) {
+            storage.Seek(0, SEEK_SET); // rewind
+            addTranslations(msg, &storage, "image/x-be-bitmap", "Be Bitmap Format");
+        }
+    }
+
+    void finalizeDrop(int32 action, const char *mimeType, BPositionIO *outStream) override
+    {
+        switch(action) {
+        case B_COPY_TARGET:
+        case B_MOVE_TARGET:
+        {
+            // convert to whatever the user asked for
+            auto typeCode = mimeToTypeCode[mimeType];
+            printf("converting to typecode: %d\n", typeCode);
+            auto roster = BTranslatorRoster::Default();
+            if (roster->Translate(&storage, nullptr, nullptr, outStream, typeCode) == B_OK) {
+                printf("successfully produced target type [%s]\n", mimeType);
+            } else {
+                printf("finalizeDropAsFile: failed to produce target type [%s]\n", mimeType);
+            }
+            break;
+        }
+        default:
+            printf("not sure what to do for link/trash yet\n");
+        }
+    }
+};
 
 
 class TextFinalizer : public DropFinalizer {
     BMallocIO storage;
 public:
-    TextFinalizer(BFile *file, BMessage *msg) {
+    TextFinalizer(BPositionIO *file, BMessage *msg) {
         // attempting to the use the Translation Kit to provide more text formats
         // ... doesn't do much (besides providing the "text/x-vnd.Be-stxt" format)
         // but in theory this could be a useful step
@@ -234,15 +268,9 @@ void DNDEncoder::addBitmap(const char *path)
     addFileRef(path);
 
     addNegotiatedPrologue();
-    // negotiated content
-    // first convert into a 'baseline type' (from which all the other conversions are possible)
+
     BFile file(path, B_READ_ONLY);
-    BBitmapStream stream;
-    auto roster = BTranslatorRoster::Default();
-    if (roster->Translate(&file, nullptr, nullptr, &stream, B_TRANSLATOR_BITMAP) == B_OK)
-    {
-        addTranslations(&stream, "image/x-be-bitmap", "Be Bitmap Format");
-    }
+    finalizer = new BitmapFinalizer(&file, msg);
 }
 
 void DNDEncoder::addFileContents(FileContent_t *files, int numFiles)
