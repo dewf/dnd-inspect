@@ -2,15 +2,107 @@
 
 #include <TranslationKit.h>
 #include <MediaKit.h>
+#include <SupportKit.h>
 
 #include <stdio.h>
 #include <assert.h>
 
 #include "Globals.h"
 
+class DropFinalizer {
+public:
+    virtual void finalizeDropAsData(int32 action, const char *mimeType, BMessage *outMsg) = 0;
+    virtual void finalizeDropAsFile(int32 action, const char *mimeType, BFile *outFile) = 0;
+};
+
+class TextFinalizer : public DropFinalizer {
+    char *data = nullptr;
+    size_t dataSize = 0;
+public:
+    TextFinalizer(const char *dataToCopy, size_t dataSize)
+        :dataSize(dataSize)
+    {
+        data = new char[dataSize];
+        memcpy(data, dataToCopy, dataSize);
+    }
+    ~TextFinalizer() {
+        if (data) {
+            delete data;
+        }
+    }
+
+    void finalizeDropAsFile(int32 action, const char *mimeType, BFile *outFile) override
+    {
+        switch(action) {
+        case B_COPY_TARGET:
+        case B_MOVE_TARGET:
+        {
+            if (!strcmp(mimeType, "text/plain")) {
+                outFile->Write(data, dataSize);
+                printf("TextFinalizer provided data!\n");
+            } else if (!strcmp(mimeType, "text/x-vnd.Be-stxt")) {
+                // perform conversion from B_TRANSLATOR_TEXT
+                BMemoryIO inStream(data, dataSize);
+                BMallocIO outStream;
+                outStream.SetBlockSize(16 * 1024);
+                auto roster = BTranslatorRoster::Default();
+                if (roster->Translate(&inStream, nullptr, nullptr, &outStream, B_STYLED_TEXT_FORMAT) == B_OK) {
+                    printf("successfully produced fancy text! woot!\n");
+                    outFile->Write(outStream.Buffer(), outStream.BufferLength());
+                } else {
+                    printf("text finalizeDropAsFile roster->Translate failed\n");
+                }
+            } else {
+                printf("text finalizeDropAsData - asked for unknown type [%s]\n", mimeType);
+            }
+            break;
+        }
+        default:
+            printf("not sure what to do for link/trash yet\n");
+        }
+        // propagate action back to view, so it can update the status
+    }
+
+    void finalizeDropAsData(int32 action, const char *mimeType, BMessage *outMsg) override
+    {
+        switch(action) {
+        case B_COPY_TARGET:
+        case B_MOVE_TARGET:
+        {
+            if (!strcmp(mimeType, "text/plain")) {
+                outMsg->AddData(mimeType, B_MIME_DATA, data, dataSize);
+                printf("TextFinalizer provided data!\n");
+            } else if (!strcmp(mimeType, "text/x-vnd.Be-stxt")) {
+                // perform conversion from B_TRANSLATOR_TEXT
+                BMemoryIO inStream(data, dataSize);
+                BMallocIO outStream;
+                outStream.SetBlockSize(16 * 1024);
+                auto roster = BTranslatorRoster::Default();
+                if (roster->Translate(&inStream, nullptr, nullptr, &outStream, B_STYLED_TEXT_FORMAT) == B_OK) {
+                    printf("successfully produced fancy text! woot!\n");
+                    outMsg->AddData(mimeType, B_MIME_DATA, outStream.Buffer(), outStream.BufferLength());
+                } else {
+                    printf("text finalizeDropAsData roster->Translate failed\n");
+                }
+            } else {
+                printf("text finalizeDropAsData - asked for unknown type [%s]\n", mimeType);
+            }
+            break;
+        }
+        default:
+            printf("not sure what to do for link/trash yet\n");
+        }
+        // propagate action back to view, so it can update the status
+    }
+};
+
+// ===================================
+
 status_t DNDEncoder::readFileData(BFile *file, char **buffer, off_t *length)
 {
     if (file->GetSize(length) == B_OK) {
+        file->Seek(SEEK_SET, 0);
+
         *buffer = new char[*length];
         file->Read(*buffer, *length);
         return B_OK;
@@ -81,7 +173,14 @@ DNDEncoder::DNDEncoder(BMessage *msg, const char *clipName)
     msg->AddString(K_FIELD_CLIP_NAME, clipName);
 }
 
-void DNDEncoder::addTextFormat(const char *text)\
+DNDEncoder::~DNDEncoder()
+{
+    if (finalizer) {
+        delete finalizer;
+    }
+}
+
+void DNDEncoder::addTextFormat(const char *text)
 {
     msg->SetData("text/plain", B_MIME_DATA, text, strlen(text));
 }
@@ -99,12 +198,21 @@ void DNDEncoder::addTextFormat(BFile *file)
     // negotiated content
     addNegotiatedPrologue();
 
+    // attempting to the use the Translation Kit to provide more text formats
+    // ... doesn't do much (besides providing the "text/x-vnd.Be-stxt" format)
     file->Seek(0, SEEK_SET);
     BFile outStream("tmp/negotiated.txt", B_CREATE_FILE | B_READ_WRITE);
     auto roster = BTranslatorRoster::Default();
     if (roster->Translate(file, nullptr, nullptr, &outStream, B_TRANSLATOR_TEXT) == B_OK) {
         outStream.Seek(0, SEEK_SET);
+
         addTranslations(&outStream, "text/plain", "Plain text file");
+    }
+
+    // read the converted/normalized data
+    if (readFileData(&outStream, &buffer, &length) == B_OK) {
+        finalizer = new TextFinalizer(buffer, length);
+        delete[] buffer;
     }
 }
 
@@ -151,10 +259,79 @@ void DNDEncoder::addFileContents(FileContent_t *files, int numFiles)
     msg->AddString(K_FIELD_TYPES, B_FILE_MIME_TYPE);
 }
 
+const char *getActionString(int32 action)
+{
+    switch(action) {
+    case B_COPY_TARGET:
+        return "B_COPY_TARGET";
+    case B_MOVE_TARGET:
+        return "B_MOVE_TARGET";
+    case B_LINK_TARGET:
+        return "B_LINK_TARGET";
+    case B_TRASH_TARGET:
+        return "B_TRASH_TARGET";
+    }
+    return "(unknown)";
+}
+
 void DNDEncoder::finalizeDrop(BMessage *msg)
 {
+    BMessage reply(B_MIME_DATA);
+
+    if (!finalizer) {
+        printf("null finalizer in DNDEncoder::finalizeDrop! canceling\n");
+        return;
+    }
+
     // verify structure of msg etc
-    printf("wooooot we're gonna finalize\n");
+    auto action = msg->what;
+    if (action != B_COPY_TARGET && action != B_MOVE_TARGET && action != B_LINK_TARGET && action != B_TRASH_TARGET) {
+        printf("DND negotiation action (message->what) was not one of: \n");
+        printf("  B_COPY_TARGET\n  B_MOVE_TARGET\n  B_LINK_TARGET\n  B_TRASH_TARGET");
+        return;
+    }
+    printf("negotiated action is %s\n", getActionString(action));
+
+    // direct message or file?
+    // plus we need to verify that we even offered to send it that way ...
+    printf("=======\n");
+    msg->PrintToStream();
+    printf("=======\n");
+
+    if (msg->HasString(K_FIELD_TYPES)) {
+        auto mimeType = msg->GetString(K_FIELD_TYPES, 0);
+        printf("target requesting mime type: [%s]\n", mimeType);
+        if (!strcmp(mimeType, B_FILE_MIME_TYPE)) {
+            // target wants a file
+
+            // get actual mime type
+            auto fileMimeType = msg->GetString(K_FIELD_FILETYPES, 0);
+            printf("target requesting file mime type: [%s]\n", fileMimeType);
+
+            entry_ref dirRef;
+            const char *filename;
+            if (msg->FindRef("directory", &dirRef) == B_OK
+                    && msg->FindString("name", &filename) == B_OK)
+            {
+                BDirectory bDir(&dirRef);
+                BFile outFile(&bDir, filename, B_WRITE_ONLY);
+                finalizer->finalizeDropAsFile(action, fileMimeType, &outFile);
+                printf("wrote file for recipient!\n");
+
+                // force mimetype on file because Tracker seems to set it inconsistently ...
+                //  (text/plain works but text/x-vnd.Be-stxt does not)
+                BNodeInfo nodeInfo(&outFile);
+                nodeInfo.SetType(fileMimeType);
+            } else {
+                printf("didn't find required directory + name in file request\n");
+            }
+        } else {
+            // direct send via message
+            finalizer->finalizeDropAsData(action, mimeType, &reply);
+            msg->SendReply(&reply);
+            printf("reply sent!\n");
+        }
+    }
 }
 
 

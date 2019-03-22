@@ -22,11 +22,8 @@ public:
             if (msg->HasInt32(K_FIELD_ACTIONS)) {
                 snprintf(buffer, 4096, "Negotiated drop detected\n");
 
-                // just choose the first action for now
-                auto action = msg->GetInt32(K_FIELD_ACTIONS, 0, B_COPY_TARGET);
-                auto firstType = msg->GetString(K_FIELD_TYPES, 0, nullptr);
-
-                BMessage reply(action);
+                BMessage reply(B_COPY_TARGET);
+                auto firstType = msg->GetString(K_FIELD_TYPES);
                 reply.AddString(K_FIELD_TYPES, firstType);
                 msg->SendReply(&reply);
             } else {
@@ -36,6 +33,10 @@ public:
             Insert(buffer);
             break;
         }
+        case B_MIME_DATA:
+            printf("wooooot got final data msg!\n");
+            msg->PrintToStream();
+            break;
         default:
             BTextView::MessageReceived(msg);
         }

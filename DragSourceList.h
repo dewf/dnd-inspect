@@ -2,9 +2,12 @@
 
 #include <ListView.h>
 
+class DNDEncoder;
+
 class DragSourceList : public BListView
 {
     BPoint mouseGrabOffs;
+    DNDEncoder *encoder = nullptr;
 public:
     DragSourceList(BRect r);
 

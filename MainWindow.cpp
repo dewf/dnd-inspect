@@ -10,6 +10,7 @@
 #include "DNDEncoder.h"
 
 static const int32 K_NEW_WINDOW_MSG = 'NWMg';
+static const int32 K_QUIT_APP_MSG = 'EXiT';
 
 static int numWindowsOpen = 0;
 
@@ -25,6 +26,11 @@ void MainWindow::MessageReceived(BMessage *message)
         win->MoveTo(p);
 
         win->Show();
+        break;
+    }
+    case K_QUIT_APP_MSG:
+    {
+        be_app->PostMessage(B_QUIT_REQUESTED);
         break;
     }
     case B_COPY_TARGET:
@@ -65,6 +71,7 @@ MainWindow::MainWindow()
     auto menuBar = new BMenuBar(Bounds(), "menubar");
     auto fileMenu = new BMenu("File");
     fileMenu->AddItem(new BMenuItem("New Window", new BMessage(K_NEW_WINDOW_MSG)));
+    fileMenu->AddItem(new BMenuItem("Quit", new BMessage(K_QUIT_APP_MSG), 'Q', B_COMMAND_KEY));
     menuBar->AddItem(new BMenuItem(fileMenu));
     AddChild(menuBar);
 

@@ -3,8 +3,11 @@
 #include <InterfaceKit.h>
 #include <StorageKit.h>
 
+class DropFinalizer;
+
 class DNDEncoder {
-    BMessage *msg;
+    DropFinalizer *finalizer; // what to follow up with once the recipient chooses a format / action
+    BMessage *msg = nullptr;
 
     status_t readFileData(BFile *file, char **buffer, off_t *length);
     void addFileRef(const char *path);
@@ -18,6 +21,7 @@ public:
     };
 
     DNDEncoder(BMessage *msg, const char *clipName);
+    ~DNDEncoder();
     BMessage *getMessage() { return msg; }
 
     void addTextFormat(const char *text);

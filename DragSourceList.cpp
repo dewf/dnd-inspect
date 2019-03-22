@@ -88,8 +88,14 @@ BRect intersectRects(BRect a, BRect b)
 bool DragSourceList::InitiateDrag(BPoint point, int32 index, bool wasSelected)
 {
     BMessage bMsg(B_SIMPLE_DATA);
-    DNDEncoder encoder(&bMsg, items[index].label);
-    items[index].createMsg(&encoder); // populate the message with the item-specific data
+
+    // delete any previous drag encoder, don't need it any more
+    if (encoder) {
+        delete encoder;
+        encoder = nullptr;
+    }
+    encoder = new DNDEncoder(&bMsg, items[index].label);
+    items[index].createMsg(encoder); // populate the message with the item-specific data
 
     // move frame to where it needs to be
     BPoint mousePos;
@@ -111,5 +117,6 @@ bool DragSourceList::InitiateDrag(BPoint point, int32 index, bool wasSelected)
     screen.ReadBitmap(bitmap, false, &isected);
 
     DragMessage(&bMsg, bitmap, mouseGrabOffs);
+
     return true;
 }
