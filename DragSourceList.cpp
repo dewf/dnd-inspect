@@ -40,7 +40,7 @@ static void audioFormat(DNDEncoder *encoder) {
     DNDEncoder::FileContent_t files[4] = {
         { "_testcontent/audio/ccrma_bachfugue_48k16.aif", "audio/x-aiff", "AIFF audio file" },
         { "_testcontent/audio/ccrma_bachfugue_48k16.mp3", "audio/mpeg", "MPEG audio file" },
-        { "_testcontent/audio/ccrma_bachfugue_48k16.ogg", "video/ogg", "OGG audio file" },
+        { "_testcontent/audio/ccrma_bachfugue_48k16.ogg", "audio/ogg", "OGG audio file" },
         { "_testcontent/audio/ccrma_bachfugue_48k16.wav", "audio/x-wav", "WAVE audio file" },
     };
     encoder->addFileContents(files, 4);

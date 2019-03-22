@@ -64,6 +64,44 @@ public:
     virtual void finalizeDrop(int32 action, const char *mimeType, BPositionIO *outStream) = 0;
 };
 
+class FileSelectionFinalizer : public DropFinalizer {
+    std::map<std::string, std::string> mimeToFilename;
+
+public:
+    FileSelectionFinalizer(DNDEncoder::FileContent_t *files, int numFiles) {
+        for (int i=0; i< numFiles; i++) {
+            mimeToFilename[files[i].mimeType] = files[i].path;
+        }
+    }
+    void finalizeDrop(int32 action, const char *mimeType, BPositionIO *outStream) override
+    {
+        switch(action) {
+        case B_COPY_TARGET:
+        case B_MOVE_TARGET:
+        {
+            auto filename = mimeToFilename[mimeType].c_str();
+
+            BFile source(filename, B_READ_ONLY);
+            off_t sourceLength;
+            if (source.GetSize(&sourceLength) == B_OK) {
+                auto buffer = new char[sourceLength];
+                if (source.ReadExactly(buffer, sourceLength) == B_OK
+                    && outStream->WriteExactly(buffer, sourceLength) == B_OK)
+                {
+                    printf("FileSelectionFinalizer wrote %lld bytes from [%s]\n", sourceLength, filename);
+                    outStream->Flush();
+                } else {
+                    printf("FileSelectionFinalizer: some issue writing\n");
+                }
+                delete[] buffer;
+            }
+            break;
+        }
+        default:
+            printf("not sure what to do for link/trash yet\n");
+        }
+    }
+};
 
 
 class TranslationKitFinalizer : public DropFinalizer {
@@ -208,6 +246,8 @@ void DNDEncoder::addFileContents(FileContent_t *files, int numFiles)
     }
     // add final type indicating we support files
     msg->AddString(K_FIELD_TYPES, B_FILE_MIME_TYPE);
+
+    finalizer = new FileSelectionFinalizer(files, numFiles);
 }
 
 void DNDEncoder::finalizeDrop(BMessage *request)
