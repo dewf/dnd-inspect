@@ -6,7 +6,7 @@
 class DropFinalizer;
 
 class DNDEncoder {
-    DropFinalizer *finalizer; // what to follow up with once the recipient chooses a format / action
+    DropFinalizer *finalizer = nullptr; // what to follow up with once the recipient chooses a format / action
     BMessage *msg = nullptr;
 
     status_t readFileData(BFile *file, char **buffer, off_t *length);
