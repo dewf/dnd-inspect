@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <cstring>
 
+#include "Globals.h"
+
 class DroppableTextView : public BTextView
 {
 public:
@@ -16,7 +18,21 @@ public:
         case B_SIMPLE_DATA:
         {
             char buffer[4096];
-            snprintf(buffer, 4096, "Got a new DnD drop!\n");
+
+            if (msg->HasInt32(K_FIELD_ACTIONS)) {
+                snprintf(buffer, 4096, "Negotiated drop detected\n");
+
+                // just choose the first action for now
+                auto action = msg->GetInt32(K_FIELD_ACTIONS, 0, B_COPY_TARGET);
+                auto firstType = msg->GetString(K_FIELD_TYPES, 0, nullptr);
+
+                BMessage reply(action);
+                reply.AddString(K_FIELD_TYPES, firstType);
+                msg->SendReply(&reply);
+            } else {
+                // simple drop
+                snprintf(buffer, 4096, "Simple drop detected\n");
+            }
             Insert(buffer);
             break;
         }

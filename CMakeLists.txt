@@ -20,6 +20,8 @@ set(SOURCE_FILES
         "DragSourceList.cpp"
         "DNDEncoder.h"
         "DNDEncoder.cpp"
+        "Globals.h"
+        "Globals.cpp"
         )
 
 add_executable(dnd-inspect ${SOURCE_FILES})

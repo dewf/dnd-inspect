@@ -6,18 +6,12 @@
 
 #include <stdio.h>
 
+#include "Globals.h"
+#include "DNDEncoder.h"
+
 static const int32 K_NEW_WINDOW_MSG = 'NWMg';
 
 static int numWindowsOpen = 0;
-
-BRect getCenterRect(int width, int height)
-{
-    BScreen screen;
-    auto frame = screen.Frame();
-    auto x = (frame.Width() - width) / 2;
-    auto y = (frame.Height() - height) / 2;
-    return BRect(x, y, x + width, y + height);
-}
 
 void MainWindow::MessageReceived(BMessage *message)
 {
@@ -33,9 +27,35 @@ void MainWindow::MessageReceived(BMessage *message)
         win->Show();
         break;
     }
+    case B_COPY_TARGET:
+    case B_MOVE_TARGET:
+    case B_LINK_TARGET:
+    case B_TRASH_TARGET:
+    {
+        // dnd negotiation reply - forward to the encoder that created it
+        if (message->IsReply()) {
+            auto prev = message->Previous();
+            auto encoder = (DNDEncoder *)prev->GetPointer(K_FIELD_ORIGINATOR);
+            if (encoder) {
+                encoder->finalizeDrop(message);
+            } else {
+                printf("no originator/encoder field in negotiation message?\n");
+            }
+        }
+        break;
+    }
     default:
         BWindow::MessageReceived(message);
     }
+}
+
+BRect getCenterRect(int width, int height)
+{
+    BScreen screen;
+    auto frame = screen.Frame();
+    auto x = (frame.Width() - width) / 2;
+    auto y = (frame.Height() - height) / 2;
+    return BRect(x, y, x + width, y + height);
 }
 
 MainWindow::MainWindow()
@@ -59,14 +79,14 @@ MainWindow::MainWindow()
     auto r = tabView->Bounds();
     r.bottom -= tabView->TabHeight(); // essentially adjusting the height, not bottom per se
 
+    dragSourceView = new DragSourceView(r);
     auto tab = new BTab();
-    auto dragSource = new DragSourceView(r);
-    tabView->AddTab(dragSource, tab);
+    tabView->AddTab(dragSourceView, tab);
     tab->SetLabel("Drag Source");
 
-    auto dropTarget = new DropTargetView(r);
+    dropTargetView = new DropTargetView(r);
     auto tab2 = new BTab();
-    tabView->AddTab(dropTarget, tab2);
+    tabView->AddTab(dropTargetView, tab2);
     tab2->SetLabel("Drop Target");
 
     AddChild(tabView);

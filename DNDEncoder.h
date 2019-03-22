@@ -1,5 +1,6 @@
 #pragma once
 
+#include <InterfaceKit.h>
 #include <StorageKit.h>
 
 class DNDEncoder {
@@ -10,19 +11,21 @@ class DNDEncoder {
     void addTranslations(BPositionIO *source, const char *nativeMIME, const char *nativeDesc);
     void addNegotiatedPrologue();
 public:
-    DNDEncoder(BMessage *msg, const char *clipName);
-    void addTextFormat(const char *text);
-    void addTextFormat(BFile *file);
-    void addColor(rgb_color color);
-    void addFileList(const char *fnames[], int count);
-    void addBitmap(const char *path);
-
     struct FileContent_t {
         const char *path;
         const char *mimeType;
         const char *desc;
     };
+
+    DNDEncoder(BMessage *msg, const char *clipName);
+    BMessage *getMessage() { return msg; }
+
+    void addTextFormat(const char *text);
+    void addTextFormat(BFile *file);
+    void addColor(rgb_color color);
+    void addFileList(const char *fnames[], int count);
+    void addBitmap(const char *path);
     void addFileContents(FileContent_t *files, int numFiles);
 
-    BMessage *getMessage() { return msg; }
+    void finalizeDrop(BMessage *msg); // handle the incoming negotiation message
 };

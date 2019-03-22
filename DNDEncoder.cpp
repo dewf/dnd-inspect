@@ -6,12 +6,7 @@
 #include <stdio.h>
 #include <assert.h>
 
-static const char *K_FIELD_CLIP_NAME = "be:clip_name";
-static const char *K_FIELD_ACTIONS = "be:actions";
-static const char *K_FIELD_ORIGINATOR = "be:originator";
-static const char *K_FIELD_TYPES = "be:types";
-static const char *K_FIELD_FILETYPES = "be:filetypes";
-static const char *K_FIELD_TYPE_DESCS = "be:type_descriptions";
+#include "Globals.h"
 
 status_t DNDEncoder::readFileData(BFile *file, char **buffer, off_t *length)
 {
@@ -71,7 +66,7 @@ void DNDEncoder::addTranslations(BPositionIO *source, const char *nativeMIME, co
 
 void DNDEncoder::addNegotiatedPrologue()
 {
-    msg->AddPointer(K_FIELD_ORIGINATOR, this);
+    msg->AddPointer(K_FIELD_ORIGINATOR, this); // so the main window can easily forward replies to us
     msg->AddInt32(K_FIELD_ACTIONS, B_COPY_TARGET);
     msg->AddInt32(K_FIELD_ACTIONS, B_MOVE_TARGET);
     msg->AddInt32(K_FIELD_ACTIONS, B_TRASH_TARGET);
@@ -154,6 +149,12 @@ void DNDEncoder::addFileContents(FileContent_t *files, int numFiles)
     }
     // add final type indicating we support files
     msg->AddString(K_FIELD_TYPES, B_FILE_MIME_TYPE);
+}
+
+void DNDEncoder::finalizeDrop(BMessage *msg)
+{
+    // verify structure of msg etc
+    printf("wooooot we're gonna finalize\n");
 }
 
 
