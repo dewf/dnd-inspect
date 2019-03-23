@@ -252,8 +252,6 @@ void DNDEncoder::addFileContents(FileContent_t *files, int numFiles)
 
 void DNDEncoder::finalizeDrop(BMessage *request)
 {
-    BMessage reply(B_MIME_DATA);
-
     if (!finalizer) {
         printf("null finalizer in DNDEncoder::finalizeDrop! canceling\n");
         return;
@@ -307,10 +305,12 @@ void DNDEncoder::finalizeDrop(BMessage *request)
             outStream.SetBlockSize(16 * 1024);
 
             finalizer->finalizeDrop(action, mimeType, &outStream);
-            reply.AddData(mimeType, B_MIME_DATA, outStream.Buffer(), outStream.BufferLength());
 
-            request->SendReply(&reply);
-            printf("reply sent!\n");
+            auto reply = new BMessage(B_MIME_DATA);
+            reply->AddData(mimeType, B_MIME_DATA, outStream.Buffer(), outStream.BufferLength());
+
+            request->SendReply(reply);
+            printf("direct msg data sent!\n");
         }
     }
 

@@ -10,6 +10,7 @@ const char *K_FIELD_FILETYPES = "be:filetypes";
 const char *K_FIELD_TYPE_DESCS = "be:type_descriptions";
 
 const char *K_FIELD_DEFAULT = "xx:KFD";
+const char *K_FIELD_DROPWINDOW = "xx:KFDWin";
 
 const char *getActionString(int32 action)
 {

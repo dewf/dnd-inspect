@@ -25,7 +25,24 @@ public:
                 snprintf(buffer, 4096, "Negotiated drop detected\n");
 
                 auto dd = new DropDialog(Window(), msg);
-                dd->Show();
+                BMessage *negotiationMsg;
+                if (dd->GenerateResponse(&negotiationMsg)) {
+
+                    // need to add our window to negotiation msg,
+                    //  because the application object is receiving the final B_MIME_DATA for some reason
+                    // but we want to process it on this thread :(
+                    auto dropWindow = Window();
+                    negotiationMsg->AddPointer(K_FIELD_DROPWINDOW, dropWindow);
+                    printf("## dropwindow ptr: %08X\n", dropWindow);
+
+                    // send from this thread, if that matters
+                    msg->SendReply(negotiationMsg);
+
+                    printf("== sent negotiation msg\n");
+                    delete negotiationMsg;
+                }
+                // woot
+                printf("GenerateResponse returned\n");
             } else {
                 // simple drop
                 snprintf(buffer, 4096, "Simple drop detected\n");
@@ -33,23 +50,22 @@ public:
             Insert(buffer);
             break;
         }
-        case B_MIME_DATA:
-            printf("wooooot got final data msg!\n");
-            msg->PrintToStream();
-            break;
         default:
             BTextView::MessageReceived(msg);
         }
     }
 };
 
-
 DropTargetView::DropTargetView(BRect r)
     :BView(r, "droptarget", B_FOLLOW_ALL, 0)
 {
     AdoptSystemColors();
 
-    //r.InsetBy(10, 10);
-    auto logArea = new DroppableTextView(r, "log");
+    logArea = new DroppableTextView(r, "log");
     AddChild(logArea);
+}
+
+void DropTargetView::processFinalDrop(BMessage *msg)
+{
+    logArea->Insert("Fucking FINALLY\n");
 }
