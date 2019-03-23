@@ -7,6 +7,8 @@
 
 #include "Globals.h"
 
+#include "DropDialog.h"
+
 class DroppableTextView : public BTextView
 {
 public:
@@ -22,10 +24,8 @@ public:
             if (msg->HasInt32(K_FIELD_ACTIONS)) {
                 snprintf(buffer, 4096, "Negotiated drop detected\n");
 
-                BMessage reply(B_COPY_TARGET);
-                auto firstType = msg->GetString(K_FIELD_TYPES);
-                reply.AddString(K_FIELD_TYPES, firstType);
-                msg->SendReply(&reply);
+                auto dd = new DropDialog(Window(), msg);
+                dd->Show();
             } else {
                 // simple drop
                 snprintf(buffer, 4096, "Simple drop detected\n");

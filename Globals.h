@@ -9,4 +9,6 @@ extern const char *K_FIELD_TYPES; // "be:types";
 extern const char *K_FIELD_FILETYPES; // "be:filetypes";
 extern const char *K_FIELD_TYPE_DESCS; // "be:type_descriptions";
 
+extern const char *K_FIELD_DEFAULT; // general purpose use, when we just have a single meaningful param on a BMessage
+
 const char *getActionString(int32 action); // B_COPY_TARGET -> "B_COPY_TARGET" etc

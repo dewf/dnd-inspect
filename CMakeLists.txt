@@ -22,6 +22,8 @@ set(SOURCE_FILES
         "DNDEncoder.cpp"
         "Globals.h"
         "Globals.cpp"
+        "DropDialog.h"
+        "DropDialog.cpp"
         )
 
 add_executable(dnd-inspect ${SOURCE_FILES})

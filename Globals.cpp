@@ -9,6 +9,8 @@ const char *K_FIELD_TYPES = "be:types";
 const char *K_FIELD_FILETYPES = "be:filetypes";
 const char *K_FIELD_TYPE_DESCS = "be:type_descriptions";
 
+const char *K_FIELD_DEFAULT = "xx:KFD";
+
 const char *getActionString(int32 action)
 {
     switch(action) {
