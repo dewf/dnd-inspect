@@ -9,20 +9,32 @@
 
 #include "DropDialog.h"
 
+#include <assert.h>
+
+
 class DroppableTextView : public BTextView
 {
+    static const size_t LOG_BUFFER_SIZE = 64 * 1024;
+    char buffer[LOG_BUFFER_SIZE];
 public:
     DroppableTextView(BRect r, const char *name)
         :BTextView(r, name, r.InsetByCopy(2, 2), B_FOLLOW_ALL) {}
+
+    void logPrintf(const char *format, ...) {
+        va_list args;
+        va_start(args, format);
+        vsnprintf(buffer, LOG_BUFFER_SIZE, format, args);
+        Insert(buffer);
+        va_end(args);
+    }
 
     void MessageReceived(BMessage *msg) override {
         switch(msg->what) {
         case B_SIMPLE_DATA:
         {
-            char buffer[4096];
-
+            logPrintf("==================================\n");
             if (msg->HasInt32(K_FIELD_ACTIONS)) {
-                snprintf(buffer, 4096, "Negotiated drop detected\n");
+                logPrintf("Negotiated drop detected\n");
 
                 auto dd = new DropDialog(Window(), msg);
                 BMessage *negotiationMsg;
@@ -33,21 +45,20 @@ public:
                     // but we want to process it on this thread :(
                     auto dropWindow = Window();
                     negotiationMsg->AddPointer(K_FIELD_DROPWINDOW, dropWindow);
-                    printf("## dropwindow ptr: %08X\n", dropWindow);
+                    logPrintf("## dropwindow ptr: %08X\n", dropWindow);
 
                     // send from this thread, if that matters
                     msg->SendReply(negotiationMsg);
 
-                    printf("== sent negotiation msg\n");
+                    logPrintf("== sent negotiation msg\n");
                     delete negotiationMsg;
                 }
                 // woot
-                printf("GenerateResponse returned\n");
+                logPrintf("GenerateResponse returned\n");
             } else {
                 // simple drop
-                snprintf(buffer, 4096, "Simple drop detected\n");
+                logPrintf("Simple drop detected\n");
             }
-            Insert(buffer);
             break;
         }
         default:
@@ -67,5 +78,21 @@ DropTargetView::DropTargetView(BRect r)
 
 void DropTargetView::processFinalDrop(BMessage *msg)
 {
-    logArea->Insert("Fucking FINALLY\n");
+    if (msg->IsReply()) {
+        auto prev = msg->Previous();
+        assert(prev != nullptr); // for some reason msg->IsReply() was not working?
+        logArea->logPrintf("isreply: %s\n", msg->IsReply() ? "true" : "false");
+
+        auto mimeType = prev->GetString(K_FIELD_TYPES); // the type we originally requested
+        logArea->logPrintf("Received direct data drop [%s]", mimeType);
+
+        type_code typeCode;
+        const void *data;
+        ssize_t numBytes;
+        if (msg->FindData(mimeType, B_MIME_DATA, &data, &numBytes) == B_OK) {
+            logArea->logPrintf("= payload size: %zu\n", numBytes);
+        } else {
+            logArea->logPrintf("uuhh something doesn't match up\n");
+        }
+    }
 }
