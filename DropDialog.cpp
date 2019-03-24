@@ -12,6 +12,7 @@ static const int32 K_ACTION_MENU_SELECT = 'AcMS';
 static const int32 K_TYPES_MENU_SELECT = 'TyMS';
 static const int32 K_FILETYPES_MENU_SELECT = 'FTMS';
 static const int32 K_OK_PRESSED = 'BOKP';
+//static const int32 K_CANCEL_PRESSED = 'BCLP';
 
 static const int32 K_DATA_NOTIFY = 'ntfy';
 
@@ -170,25 +171,27 @@ void DropDialog::MessageReceived(BMessage *msg)
             negotiationMsg = new BMessage(dropAction);
             negotiationMsg->SetString(K_FIELD_TYPES, selectedType.c_str());
 
-            // notify the caller of GenerateResponse()
-            send_data(waitingThread, K_DATA_NOTIFY, nullptr, 0);
-
             // close the dialog
             PostMessage(B_QUIT_REQUESTED);
         }
         break;
     }
-//    case B_MIME_DATA:
+//    case K_CANCEL_PRESSED:
 //    {
-//        printf("finally got the damned data!\n");
-////        dropData = new BMessage(*msg); // copy?
-
-
+//        printf("cancel pressed\n");
+//        PostMessage(B_QUIT_REQUESTED);
 //        break;
 //    }
     default:
-        printf("XXX recvd msg of type: %08X\n", msg->what);
         BWindow::MessageReceived(msg);
     }
+}
+
+bool DropDialog::QuitRequested()
+{
+    // notify the caller of GenerateResponse() that we're done (whether by OK or Cancel)
+    send_data(waitingThread, K_DATA_NOTIFY, nullptr, 0);
+
+    return true; // yes, please close window / end thread
 }
 

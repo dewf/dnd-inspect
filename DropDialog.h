@@ -21,6 +21,7 @@ class DropDialog : public BWindow
     thread_id waitingThread;
 
     void MessageReceived(BMessage *msg) override;
+    bool QuitRequested() override;
 public:
     DropDialog(BWindow *centerOn, BMessage *dropMsg);
 
