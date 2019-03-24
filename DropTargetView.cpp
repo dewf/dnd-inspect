@@ -1,6 +1,7 @@
 #include "DropTargetView.h"
 
 #include <InterfaceKit.h>
+#include <StorageKit.h>
 
 #include <stdio.h>
 #include <cstring>
@@ -53,7 +54,7 @@ public:
     bool dumpColorData(BMessage *msg) {
         const void *data;
         ssize_t numBytes;
-        if (msg->FindData("RGBColor", B_RGB_COLOR_TYPE, &data, &numBytes) == B_OK) {
+        if (msg->FindData(K_FIELD_RGBCOLOR, B_RGB_COLOR_TYPE, &data, &numBytes) == B_OK) {
             auto c = *((rgb_color *)data);
             logPrintf("RGBColor: %02X.%02X.%02X.%02X\n", c.red, c.green, c.blue, c.alpha);
             return true;
@@ -61,10 +62,28 @@ public:
         return false;
     }
 
+    bool dumpFileRefs(BMessage *msg) {
+        type_code typeCode;
+        int32 countFound;
+        if (msg->GetInfo(K_FIELD_REFS, &typeCode, &countFound) == B_OK
+                && typeCode == B_REF_TYPE)
+        {
+            logPrintf("%d file refs:\n", countFound);
+            for (int i=0; i< countFound; i++) {
+                entry_ref ref;
+                if (msg->FindRef(K_FIELD_REFS, i, &ref) == B_OK) {
+                    BPath path(&ref);
+                    logPrintf(" - %s\n", path.Path());
+                }
+            }
+        }
+    }
+
     void dumpSimpleDrop(BMessage *msg) {
         // check for RGB colors, file refs, etc
         if (!dumpMimeData(msg))
-            if (!dumpColorData(msg)) {}
+            if (!dumpColorData(msg))
+                if (!dumpFileRefs(msg)) {}
     }
 
     void MessageReceived(BMessage *msg) override {

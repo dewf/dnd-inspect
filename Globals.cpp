@@ -9,6 +9,9 @@ const char *K_FIELD_TYPES = "be:types";
 const char *K_FIELD_FILETYPES = "be:filetypes";
 const char *K_FIELD_TYPE_DESCS = "be:type_descriptions";
 
+const char *K_FIELD_REFS = "refs";
+const char *K_FIELD_RGBCOLOR = "RGBColor";
+
 const char *K_FIELD_DEFAULT = "xx:KFD";
 const char *K_FIELD_DROPWINDOW = "xx:KFDWin";
 

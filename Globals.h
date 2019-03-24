@@ -10,6 +10,9 @@ extern const char *K_FIELD_TYPES; // "be:types";
 extern const char *K_FIELD_FILETYPES; // "be:filetypes";
 extern const char *K_FIELD_TYPE_DESCS; // "be:type_descriptions";
 
+extern const char *K_FIELD_REFS; // "refs"
+extern const char *K_FIELD_RGBCOLOR; // "RGBColor"
+
 // internal stuff
 extern const char *K_FIELD_DEFAULT; // general purpose use, when we just have a single meaningful param on a BMessage
 extern const char *K_FIELD_DROPWINDOW; // to route messages ...
