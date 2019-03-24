@@ -2,6 +2,7 @@
 
 #include <GroupLayout.h>
 #include <MimeType.h>
+#include <StorageKit.h>
 
 #include "Globals.h"
 
@@ -15,6 +16,8 @@ enum IntConstants : int32 {
     K_FILETYPES_MENU_SELECT,
     K_OK_PRESSED,
     K_DROP_AS_FILE_CHECK,
+    K_OPEN_FILE_CHOOSER,
+    K_FILE_PANEL_DONE,
 
     // thread notify code
     K_THREAD_NOTIFY
@@ -89,6 +92,10 @@ DropDialog::DropDialog(BWindow *centerOn, BMessage *dropMsg)
                 fileTypeChooser = new BMenuField("File Type", fileTypesMenu);
                 fileTypeChooser->SetEnabled(false); // disabled until user chooses "drop as file" in data type above
                 layout->AddView(fileTypeChooser);
+
+                // choose file button
+                chooseFileButton = new BButton("Choose file...\n", new BMessage(K_OPEN_FILE_CHOOSER));
+                layout->AddView(chooseFileButton);
             } else {
                 printf("drop message doesn't contain [%s] field of type B_STRING_TYPE", K_FIELD_FILETYPES);
                 PostMessage(B_QUIT_REQUESTED);
@@ -189,6 +196,35 @@ void DropDialog::MessageReceived(BMessage *msg)
             // close the dialog
             PostMessage(B_QUIT_REQUESTED);
         }
+        break;
+    }
+    case K_OPEN_FILE_CHOOSER:
+    {
+        filePanel = new BFilePanel(
+                    B_SAVE_PANEL,
+                    new BMessenger(this), // msg target
+                    nullptr,
+                    0,     // n/a
+                    false, // multiple selection
+                    new BMessage(K_FILE_PANEL_DONE),
+                    nullptr,
+                    true, // modal
+                    true); // hide when done
+        filePanel->Show();
+
+        break;
+    }
+    case K_FILE_PANEL_DONE:
+    {
+        // file chosen
+        printf("file selected\n");
+        entry_ref directory;
+        msg->FindRef("directory", &directory);
+        auto name = msg->GetString("name");
+        BPath path(new BDirectory(&directory), name);
+        printf("you want to save to: [%s]\n", path.Path());
+        // directory = entry ref
+        // name = string
         break;
     }
     default:

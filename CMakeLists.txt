@@ -4,7 +4,7 @@ project(dnd-inspect)
 set(CMAKE_CXX_STANDARD 11)
 
 link_directories("/develop/lib")
-link_libraries(be translation media)
+link_libraries(be translation media tracker)
 
 set(SOURCE_FILES
         "main.cpp"
