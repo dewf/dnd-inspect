@@ -8,13 +8,17 @@
 #include <assert.h>
 #include <stdio.h>
 
-static const int32 K_ACTION_MENU_SELECT = 'AcMS';
-static const int32 K_TYPES_MENU_SELECT = 'TyMS';
-static const int32 K_FILETYPES_MENU_SELECT = 'FTMS';
-static const int32 K_OK_PRESSED = 'BOKP';
-//static const int32 K_CANCEL_PRESSED = 'BCLP';
+enum IntConstants : int32 {
+    // message 'what's
+    K_ACTION_MENU_SELECT = 'kX@1', // some random gibberish unlikely to collide
+    K_TYPES_MENU_SELECT,
+    K_FILETYPES_MENU_SELECT,
+    K_OK_PRESSED,
+    K_DROP_AS_FILE_CHECK,
 
-static const int32 K_DATA_NOTIFY = 'ntfy';
+    // thread notify code
+    K_THREAD_NOTIFY
+};
 
 BRect centeredRect(BWindow *centerOn, int width, int height)
 {
@@ -41,16 +45,19 @@ DropDialog::DropDialog(BWindow *centerOn, BMessage *dropMsg)
         auto typesMenu = new BPopUpMenu("(choose drop data type)");
 
         bool hasFileTypes = false;
+
         for(int i=0; i< numTypesFound; i++) {
             auto _type = dropMsg->GetString(K_FIELD_TYPES, i, "x");
 
-            auto msg = new BMessage(K_TYPES_MENU_SELECT);
-            msg->SetString(K_FIELD_DEFAULT, _type);
-
-            if (i == (numTypesFound - 1) && !strcmp(_type, B_FILE_MIME_TYPE)) {
+            if (!strcmp(_type, B_FILE_MIME_TYPE)) {
                 hasFileTypes = true;
-                typesMenu->AddItem(new BMenuItem("====== Drop as File ======", msg));
+                if (i != numTypesFound - 1) {
+                    printf("note: B_FILE_MIME_TYPE should only appear last in the be:types list\n");
+                }
             } else {
+                // non-file type
+                auto msg = new BMessage(K_TYPES_MENU_SELECT);
+                msg->SetString(K_FIELD_DEFAULT, _type);
                 typesMenu->AddItem(new BMenuItem(_type, msg));
             }
         }
@@ -59,6 +66,10 @@ DropDialog::DropDialog(BWindow *centerOn, BMessage *dropMsg)
 
         // if last is filetype, check those
         if (hasFileTypes) {
+            // checkbox to enable file types
+            dropAsFile = new BCheckBox("Drop as file", new BMessage(K_DROP_AS_FILE_CHECK));
+            layout->AddView(dropAsFile);
+
             type_code fileTypesTypeCode;
             int32 numFileTypesFound;
             bool fileTypesFixedSize;
@@ -133,7 +144,7 @@ bool DropDialog::GenerateResponse(BMessage **negotiationMsg)
     Show();
 
     thread_id sender;
-    while(receive_data(&sender, nullptr, 0) != K_DATA_NOTIFY) {
+    while(receive_data(&sender, nullptr, 0) != K_THREAD_NOTIFY) {
         printf("drop dialog - ShowAndWait received spurious msg\n");
     }
 
@@ -152,9 +163,13 @@ void DropDialog::MessageReceived(BMessage *msg)
     case K_TYPES_MENU_SELECT:
     {
         selectedType = msg->GetString(K_FIELD_DEFAULT);
-        printf("changed seltype: %s\n", selectedType.c_str());
-        auto fileChooserEnabled = !strcmp(selectedType.c_str(), B_FILE_MIME_TYPE);
-        fileTypeChooser->SetEnabled(fileChooserEnabled);
+        break;
+    }
+    case K_DROP_AS_FILE_CHECK:
+    {
+        auto state = dropAsFile->Value() == B_CONTROL_ON;
+        typeChooser->SetEnabled(!state); // disable (or enable) normal types
+        fileTypeChooser->SetEnabled(state); // enalbe (or disable) file types
         break;
     }
     case K_FILETYPES_MENU_SELECT:
@@ -176,12 +191,6 @@ void DropDialog::MessageReceived(BMessage *msg)
         }
         break;
     }
-//    case K_CANCEL_PRESSED:
-//    {
-//        printf("cancel pressed\n");
-//        PostMessage(B_QUIT_REQUESTED);
-//        break;
-//    }
     default:
         BWindow::MessageReceived(msg);
     }
@@ -190,7 +199,7 @@ void DropDialog::MessageReceived(BMessage *msg)
 bool DropDialog::QuitRequested()
 {
     // notify the caller of GenerateResponse() that we're done (whether by OK or Cancel)
-    send_data(waitingThread, K_DATA_NOTIFY, nullptr, 0);
+    send_data(waitingThread, K_THREAD_NOTIFY, nullptr, 0);
 
     return true; // yes, please close window / end thread
 }
