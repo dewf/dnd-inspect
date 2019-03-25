@@ -50,12 +50,6 @@ void MainWindow::MessageReceived(BMessage *message)
         }
         break;
     }
-    case B_MIME_DATA:
-    {
-        // got here from App::MessageReceived
-        dropTargetView->processFinalDrop(message);
-        break;
-    }
     default:
         BWindow::MessageReceived(message);
     }

@@ -9,6 +9,4 @@ class DropTargetView : public BView
     DroppableTextView *logArea = nullptr;
 public:
     DropTargetView(BRect r);
-
-    void processFinalDrop(BMessage *msg);
 };

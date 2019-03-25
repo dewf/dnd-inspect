@@ -90,26 +90,21 @@ public:
         switch(msg->what) {
         case B_SIMPLE_DATA:
         {
-            logPrintf("==================================\n");
+            SelectAll();
+            Clear();
+
             if (msg->HasInt32(K_FIELD_ACTIONS)) {
                 logPrintf("Negotiated drop detected\n");
 
                 // current dialog implementation is blocking
                 // alternatively we could detach the message(?)
-                //  and let the dialog run merrily in its own thread,
-                //  that doesn't seem to present any issue as far as how this works
+                //  and let the dialog run merrily in its own thread.
+                // that doesn't seem to present any issue as far as how this works
                 auto dd = new DropDialog(Window(), msg);
                 BMessage *negotiationMsg;
                 if (dd->GenerateResponse(&negotiationMsg)) {
-                    // need to add our window to negotiation msg,
-                    //  because the application object is receiving the final B_MIME_DATA for some reason
-                    // but we want to process it on this thread,
-                    //  hence the need to provide this window to send that message to (see App.cpp)
-                    auto dropWindow = Window();
-                    negotiationMsg->AddPointer(K_FIELD_DROPWINDOW, dropWindow);
 
-                    // send from this thread (vs. dialog thread), if that matters
-                    msg->SendReply(negotiationMsg);
+                    msg->SendReply(negotiationMsg, BMessenger(this));
 
                     delete negotiationMsg;
                 } else {
@@ -119,6 +114,25 @@ public:
                 // simple drop
                 logPrintf("Simple drop detected\n");
                 dumpSimpleDrop(msg);
+            }
+            break;
+        }
+        case B_MIME_DATA: // final drop
+        {
+            if (msg->IsReply()) {
+                auto prev = msg->Previous();
+
+                auto mimeType = prev->GetString(K_FIELD_TYPES); // the type we originally requested
+                logPrintf("Received direct data drop [%s]", mimeType);
+
+                type_code typeCode;
+                const void *data;
+                ssize_t numBytes;
+                if (msg->FindData(mimeType, B_MIME_DATA, &data, &numBytes) == B_OK) {
+                    logPrintf("= payload size: %zu\n", numBytes);
+                } else {
+                    logPrintf("uuhh something doesn't match up\n");
+                }
             }
             break;
         }
@@ -135,24 +149,4 @@ DropTargetView::DropTargetView(BRect r)
 
     logArea = new DroppableTextView(r, "log");
     AddChild(logArea);
-}
-
-void DropTargetView::processFinalDrop(BMessage *msg)
-{
-    if (msg->IsReply()) {
-        auto prev = msg->Previous();
-        assert(prev != nullptr); // for some reason msg->IsReply() was not working?
-
-        auto mimeType = prev->GetString(K_FIELD_TYPES); // the type we originally requested
-        logArea->logPrintf("Received direct data drop [%s]", mimeType);
-
-        type_code typeCode;
-        const void *data;
-        ssize_t numBytes;
-        if (msg->FindData(mimeType, B_MIME_DATA, &data, &numBytes) == B_OK) {
-            logArea->logPrintf("= payload size: %zu\n", numBytes);
-        } else {
-            logArea->logPrintf("uuhh something doesn't match up\n");
-        }
-    }
 }
