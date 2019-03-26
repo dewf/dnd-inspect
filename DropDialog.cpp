@@ -15,13 +15,14 @@
 
 enum IntConstants : int32 {
     // message 'what's
-    K_ACTION_MENU_SELECT = 'kX@1', // some random gibberish unlikely to collide
-    K_TYPES_MENU_SELECT,
+    K_TYPES_MENU_SELECT = 'kX@1', // some random gibberish unlikely to collide
     K_FILETYPES_MENU_SELECT,
     K_OK_PRESSED,
     K_DROP_AS_FILE_CHECK,
     K_OPEN_FILE_CHOOSER,
     K_FILE_PANEL_DONE,
+
+    K_CLICKED_ACTION,
 
     // thread notify code
     K_THREAD_NOTIFY
@@ -35,15 +36,14 @@ BRect centeredRect(BWindow *centerOn, int width, int height)
     return BRect(cx, cy, cx + width, cy + height);
 }
 
-void addButtons(BGroupLayout *group, bool forFilePanel = false)
+BButton *addActionButton(BGroupLayout *hbox, const char *label, int32 action)
 {
-    auto hbox = new BGroupLayout(B_HORIZONTAL);
-    group->AddItem(hbox);
-
-    hbox->AddView(new BButton("Copy"));
-    hbox->AddView(new BButton("Move"));
-    hbox->AddView(new BButton("Link"));
-    hbox->AddView(new BButton("Trash"));
+    auto msg = new BMessage(K_CLICKED_ACTION);
+    msg->SetInt32(K_FIELD_DEFAULT, action);
+    auto button = new BButton(label, msg);
+    button->SetEnabled(false);
+    hbox->AddView(button);
+    return button;
 }
 
 DropDialog::DropDialog(BWindow *centerOn, BMessage *dropMsg)
@@ -60,7 +60,7 @@ DropDialog::DropDialog(BWindow *centerOn, BMessage *dropMsg)
 
     // choose file button
     chooseFileButton = new BButton("Pick...\n", new BMessage(K_OPEN_FILE_CHOOSER));
-    selectedPathLabel = new BStringView("path-label", "(no file selected)");
+    chosenPathLabel = new BStringView("path-label", "(no file selected)");
 
     actionMenu = new BPopUpMenu("(choose drop action)");
     actionChooser = new BMenuField("Drop Action", actionMenu);
@@ -76,7 +76,7 @@ DropDialog::DropDialog(BWindow *centerOn, BMessage *dropMsg)
     //group->SetInsets(0);
 
     // tab area for data/file drop choice
-    auto tabView = new BTabView("tabview");
+    tabView = new BTabView("tabview");
 
     auto r = tabView->Bounds();
     r.bottom -= tabView->TabHeight(); // essentially adjusting the height, not bottom per se
@@ -87,11 +87,16 @@ DropDialog::DropDialog(BWindow *centerOn, BMessage *dropMsg)
     dataDropView->AddChild(typeChooser);
     dataDropView->AddChild(BSpaceLayoutItem::CreateGlue());
 
-    addButtons(dataDropView->GroupLayout());
+    auto hbox1 = new BGroupLayout(B_HORIZONTAL);
+    dataDropView->AddChild(hbox1);
+    dataActionButtons.copy = addActionButton(hbox1, "Copy", B_COPY_TARGET);
+    dataActionButtons.move = addActionButton(hbox1, "Move", B_MOVE_TARGET);
+    dataActionButtons.link = addActionButton(hbox1, "Link", B_LINK_TARGET);
+    dataActionButtons.trash = addActionButton(hbox1, "Trash", B_TRASH_TARGET);
 
-    auto tab = new BTab();
-    tabView->AddTab(dataDropView, tab);
-    tab->SetLabel("Data Drop");
+    dataTab = new BTab();
+    tabView->AddTab(dataDropView, dataTab);
+    dataTab->SetLabel("Data Drop");
 
     // file drop tab
     auto fileDropView = new BGroupView(B_VERTICAL);
@@ -99,16 +104,21 @@ DropDialog::DropDialog(BWindow *centerOn, BMessage *dropMsg)
     fileDropView->AddChild(fileTypeChooser);
        auto hbox = new BGroupView(B_HORIZONTAL);
        hbox->AddChild(BSpaceLayoutItem::CreateGlue());
-       hbox->AddChild(selectedPathLabel);
+       hbox->AddChild(chosenPathLabel);
        hbox->AddChild(chooseFileButton);
     fileDropView->AddChild(hbox);
     fileDropView->AddChild(BSpaceLayoutItem::CreateGlue());
 
-    addButtons(fileDropView->GroupLayout());
+    auto hbox2 = new BGroupLayout(B_HORIZONTAL);
+    fileDropView->AddChild(hbox2);
+    fileActionButtons.copy = addActionButton(hbox2, "Copy", B_COPY_TARGET);
+    fileActionButtons.move = addActionButton(hbox2, "Move", B_MOVE_TARGET);
+    fileActionButtons.link = addActionButton(hbox2, "Link", B_LINK_TARGET);
+    fileActionButtons.trash = addActionButton(hbox2, "Trash", B_TRASH_TARGET);
 
-    tab = new BTab();
-    tabView->AddTab(fileDropView, tab);
-    tab->SetLabel("File Drop");
+    fileTab = new BTab();
+    tabView->AddTab(fileDropView, fileTab);
+    fileTab->SetLabel("File Drop");
 
     //
     group->AddView(tabView);
@@ -134,40 +144,36 @@ bool DropDialog::GenerateResponse(BMessage **negotiationMsg)
 void DropDialog::MessageReceived(BMessage *msg)
 {
     switch(msg->what) {
-    case K_ACTION_MENU_SELECT:
-    {
-        dropAction = msg->GetInt32(K_FIELD_DEFAULT, B_COPY_TARGET);
-        break;
-    }
     case K_TYPES_MENU_SELECT:
     {
         selectedType = msg->GetString(K_FIELD_DEFAULT);
         break;
     }
-//    case K_DROP_AS_FILE_CHECK:
-//    {
-//        auto state = dropAsFile->Value() == B_CONTROL_ON;
-//        typeChooser->SetEnabled(!state); // disable (or enable) normal types
-//        fileTypeChooser->SetEnabled(state); // enalbe (or disable) file types
-//        break;
-//    }
     case K_FILETYPES_MENU_SELECT:
     {
         selectedFileType = msg->GetString(K_FIELD_DEFAULT);
         break;
     }
-    case K_OK_PRESSED:
+    case K_CLICKED_ACTION:
     {
-        printf("OK pressed\n");
-        if (strcmp(selectedType.c_str(), B_FILE_MIME_TYPE) != 0) { // don't deal with files yet
+        printf("k-clicked-action\n");
 
-            // construct the message to send (will be returned to dialog caller)
-            negotiationMsg = new BMessage(dropAction);
-            negotiationMsg->SetString(K_FIELD_TYPES, selectedType.c_str());
+        // construct the message to send (will be returned to dialog caller)
+        auto dropAction = msg->GetInt32(K_FIELD_DEFAULT, B_COPY_TARGET);
+        negotiationMsg = new BMessage(dropAction);
 
-            // close the dialog
-            PostMessage(B_QUIT_REQUESTED);
+        auto selected = tabView->TabAt(tabView->Selection());
+        if (selected == dataTab) {
+            negotiationMsg->AddString(K_FIELD_TYPES, selectedType.c_str());
+        } else {
+            negotiationMsg->AddString(K_FIELD_TYPES, B_FILE_MIME_TYPE);
+            negotiationMsg->AddString(K_FIELD_FILETYPES, selectedFileType.c_str());
+            negotiationMsg->AddRef("directory", &chosenDir);
+            negotiationMsg->AddString("name", chosenFilename.c_str());
+            negotiationMsg->PrintToStream();
         }
+        // close the dialog
+        PostMessage(B_QUIT_REQUESTED);
         break;
     }
     case K_OPEN_FILE_CHOOSER:
@@ -190,13 +196,13 @@ void DropDialog::MessageReceived(BMessage *msg)
     {
         // file chosen
         printf("file selected\n");
-        entry_ref directory;
-        msg->FindRef("directory", &directory);
-        auto name = msg->GetString("name");
-        BPath path(new BDirectory(&directory), name);
-        selectedPathLabel->SetText(path.Path());
-        // directory = entry ref
-        // name = string
+        if (msg->FindRef("directory", &chosenDir) == B_OK) {
+            chosenFilename = msg->GetString("name");
+            // update label
+            BPath path(new BDirectory(&chosenDir), chosenFilename.c_str());
+            chosenPathLabel->SetText(path.Path());
+            // enable the buttons that need to be enabled ...
+        }
         break;
     }
     default:
@@ -222,7 +228,9 @@ void DropDialog::configure()
             && numTypesFound > 0 && typesTypeCode == B_STRING_TYPE)
     {
         bool hasFileTypes = false;
+        bool hasDataTypes = false;
 
+        // get the regular "be:types" -- one of which might be a B_FILE_MIME_TYPE telling us it can also drop files
         for(int i=0; i< numTypesFound; i++) {
             auto _type = dropMsg->GetString(K_FIELD_TYPES, i, "x");
 
@@ -233,13 +241,20 @@ void DropDialog::configure()
                 }
             } else {
                 // non-file type
+                hasDataTypes = true;
                 auto msg = new BMessage(K_TYPES_MENU_SELECT);
                 msg->SetString(K_FIELD_DEFAULT, _type);
                 typesMenu->AddItem(new BMenuItem(_type, msg));
             }
         }
 
-        // if last is filetype, check those
+        // did the be:types have anything besides a file
+        if (!hasDataTypes) {
+            // well, apparently it can only drop files, so disable the whole data drop tab I guess
+            tabView->RemoveTab(0);
+        }
+
+        // populate the file tab, if there is one
         if (hasFileTypes) {
             type_code fileTypesTypeCode;
             int32 numFileTypesFound;
@@ -260,12 +275,17 @@ void DropDialog::configure()
                 PostMessage(B_QUIT_REQUESTED);
                 return;
             }
+        } else {
+            // remove file
+            tabView->RemoveTab(1);
         }
     } else {
         printf("drop message doesn't contain [%s] field of type B_STRING_TYPE", K_FIELD_TYPES);
         PostMessage(B_QUIT_REQUESTED);
         return;
     }
+
+    // enable buttons that are present in the actions list
 
     // populate the drop action menu
     type_code actionsTypeCode;
@@ -277,11 +297,24 @@ void DropDialog::configure()
         for(int i=0; i< numActionsFound; i++) {
             auto action = dropMsg->GetInt32(K_FIELD_ACTIONS, i, 0);
 
-            auto msg = new BMessage(K_ACTION_MENU_SELECT);
-            msg->SetInt32(K_FIELD_DEFAULT, action);
-
-            auto actionStr = getActionString(action);
-            actionMenu->AddItem(new BMenuItem(actionStr, msg));
+            switch(action) {
+            case B_COPY_TARGET:
+                dataActionButtons.copy->SetEnabled(true);
+                fileActionButtons.copy->SetEnabled(true);
+                break;
+            case B_MOVE_TARGET:
+                dataActionButtons.move->SetEnabled(true);
+                fileActionButtons.move->SetEnabled(true);
+                break;
+            case B_LINK_TARGET:
+                dataActionButtons.link->SetEnabled(true);
+                fileActionButtons.link->SetEnabled(true);
+                break;
+            case B_TRASH_TARGET:
+                dataActionButtons.trash->SetEnabled(true);
+                fileActionButtons.trash->SetEnabled(true);
+                break;
+            }
         }
     } else {
         printf("drop message doesn't contain [%s] field of type B_INT32_TYPE", K_FIELD_ACTIONS);

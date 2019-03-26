@@ -131,6 +131,7 @@ public:
                 if (msg->FindData(mimeType, B_MIME_DATA, &data, &numBytes) == B_OK) {
                     logPrintf("= payload size: %zu\n", numBytes);
                 } else {
+                    msg->PrintToStream();
                     logPrintf("uuhh something doesn't match up\n");
                 }
             }

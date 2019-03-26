@@ -1,6 +1,7 @@
 #pragma once
 
 #include <InterfaceKit.h>
+#include <StorageKit.h>
 
 #include <string>
 
@@ -10,16 +11,26 @@ class BButton;
 class BFilePanel;
 class BPopUpMenu;
 class BStringView;
+class BTabView;
+class BTab;
 
 class DropDialog : public BWindow
 {
+    struct ActionButtons {
+        BButton *copy, *move, *link, *trash;
+    };
+
     BMessage *dropMsg = nullptr;
     BMessage *negotiationMsg = nullptr; // created / configured by the dialog
-    int32 dropAction = B_COPY_TARGET;
+
+    BTabView *tabView = nullptr;
+    BTab *dataTab = nullptr;
+    BTab *fileTab = nullptr;
 
     BPopUpMenu *typesMenu = nullptr;
     BMenuField *typeChooser = nullptr;
     std::string selectedType; // can't use char* because the BMessage we're getting from has a finite lifespan
+    ActionButtons dataActionButtons;
 
     BPopUpMenu *fileTypesMenu = nullptr;
     BMenuField *fileTypeChooser = nullptr;
@@ -27,7 +38,10 @@ class DropDialog : public BWindow
 
     BButton *chooseFileButton = nullptr;
     BFilePanel *filePanel = nullptr;
-    BStringView *selectedPathLabel = nullptr;
+    BStringView *chosenPathLabel = nullptr;
+    entry_ref chosenDir;
+    std::string chosenFilename;
+    ActionButtons fileActionButtons;
 
     BPopUpMenu *actionMenu = nullptr;
     BMenuField *actionChooser = nullptr;

@@ -288,7 +288,7 @@ void DNDEncoder::finalizeDrop(BMessage *request)
                     && request->FindString("name", &filename) == B_OK)
             {
                 BDirectory bDir(&dirRef);
-                BFile outFile(&bDir, filename, B_WRITE_ONLY);
+                BFile outFile(&bDir, filename, B_CREATE_FILE | B_WRITE_ONLY);
                 finalizer->finalizeDrop(action, fileMimeType, &outFile);
                 printf("wrote file for recipient!\n");
 
