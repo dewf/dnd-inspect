@@ -33,23 +33,6 @@ void MainWindow::MessageReceived(BMessage *message)
         be_app->PostMessage(B_QUIT_REQUESTED);
         break;
     }
-    case B_COPY_TARGET:
-    case B_MOVE_TARGET:
-    case B_LINK_TARGET:
-    case B_TRASH_TARGET:
-    {
-        // dnd negotiation reply - forward to the encoder that created it
-        if (message->IsReply()) {
-            auto prev = message->Previous();
-            auto encoder = (DNDEncoder *)prev->GetPointer(K_FIELD_ORIGINATOR);
-            if (encoder) {
-                encoder->finalizeDrop(message);
-            } else {
-                printf("no originator/encoder field in negotiation message?\n");
-            }
-        }
-        break;
-    }
     default:
         BWindow::MessageReceived(message);
     }
@@ -65,7 +48,7 @@ BRect getCenterRect(int width, int height)
 }
 
 MainWindow::MainWindow()
-    :BWindow(getCenterRect(500, 600), "DND Inspector", B_TITLED_WINDOW, 0 /*B_QUIT_ON_WINDOW_CLOSE*/)
+    :BWindow(getCenterRect(500, 600), "DND Inspector", B_DOCUMENT_WINDOW, 0 /*B_QUIT_ON_WINDOW_CLOSE*/)
 {
     // menu
     auto menuBar = new BMenuBar(Bounds(), "menubar");

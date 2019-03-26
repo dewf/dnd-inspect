@@ -8,6 +8,8 @@
 
 #include "DNDEncoder.h"
 
+#include "Globals.h"
+
 struct formatItem_t {
     const char *label;
     void (*createMsg)(DNDEncoder *encoder);
@@ -58,6 +60,33 @@ formatItem_t items[] {
     {"bitmap data (ref + negotiated)", bitmapFormat},
     {"audio data (negotiated)", audioFormat},
 };
+
+void DragSourceList::MessageReceived(BMessage *message)
+{
+    switch(message->what) {
+    case B_COPY_TARGET:
+    case B_MOVE_TARGET:
+    case B_LINK_TARGET:
+    case B_TRASH_TARGET:
+    {
+        // dnd negotiation reply - forward to the encoder that created it
+        if (message->IsReply()) {
+            auto prev = message->Previous();
+            auto encoder = (DNDEncoder *)prev->GetPointer(K_FIELD_ORIGINATOR);
+            if (encoder) {
+                auto result = encoder->finalizeDrop(message);
+                printf("drag result was: %08X\n", result);
+                // update that row with result
+            } else {
+                printf("no originator/encoder field in negotiation message?\n");
+            }
+        }
+        break;
+    }
+    default:
+        BListView::MessageReceived(message);
+    }
+}
 
 DragSourceList::DragSourceList(BRect r)
     :BListView(r, "list", B_SINGLE_SELECTION_LIST, B_FOLLOW_ALL)
@@ -116,7 +145,7 @@ bool DragSourceList::InitiateDrag(BPoint point, int32 index, bool wasSelected)
     auto bitmap = new BBitmap(bitmapBounds, screen.ColorSpace());
     screen.ReadBitmap(bitmap, false, &isected);
 
-    DragMessage(&bMsg, bitmap, mouseGrabOffs);
+    DragMessage(&bMsg, bitmap, mouseGrabOffs, this);
 
     return true;
 }

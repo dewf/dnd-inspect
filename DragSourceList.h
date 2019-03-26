@@ -8,6 +8,8 @@ class DragSourceList : public BListView
 {
     BPoint mouseGrabOffs;
     DNDEncoder *encoder = nullptr;
+
+    void MessageReceived(BMessage *message) override;
 public:
     DragSourceList(BRect r);
 

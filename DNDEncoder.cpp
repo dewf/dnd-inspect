@@ -250,11 +250,11 @@ void DNDEncoder::addFileContents(FileContent_t *files, int numFiles)
     finalizer = new FileSelectionFinalizer(files, numFiles);
 }
 
-void DNDEncoder::finalizeDrop(BMessage *request)
+DNDEncoder::DragResult DNDEncoder::finalizeDrop(BMessage *request)
 {
     if (!finalizer) {
         printf("null finalizer in DNDEncoder::finalizeDrop! canceling\n");
-        return;
+        return DragResult::Failed;
     }
 
     // verify structure of msg etc
@@ -262,7 +262,7 @@ void DNDEncoder::finalizeDrop(BMessage *request)
     if (action != B_COPY_TARGET && action != B_MOVE_TARGET && action != B_LINK_TARGET && action != B_TRASH_TARGET) {
         printf("DND negotiation action (message->what) was not one of: \n");
         printf("  B_COPY_TARGET\n  B_MOVE_TARGET\n  B_LINK_TARGET\n  B_TRASH_TARGET");
-        return;
+        return DragResult::Failed;
     }
     printf("negotiated action is %s\n", getActionString(action));
 
@@ -272,49 +272,60 @@ void DNDEncoder::finalizeDrop(BMessage *request)
     request->PrintToStream();
     printf("=======\n");
 
-    if (request->HasString(K_FIELD_TYPES)) {
-        auto mimeType = request->GetString(K_FIELD_TYPES, 0);
-        printf("target requesting mime type: [%s]\n", mimeType);
-        if (!strcmp(mimeType, B_FILE_MIME_TYPE)) {
-            // target wants a file
+    if (action == B_TRASH_TARGET) {
+        printf("destination requested we trash!\n");
+        return DragResult::Trashed;
+    } else {
+        // copy / move / link
+        if (request->HasString(K_FIELD_TYPES)) {
+            auto mimeType = request->GetString(K_FIELD_TYPES, 0);
+            printf("target requesting mime type: [%s]\n", mimeType);
+            if (!strcmp(mimeType, B_FILE_MIME_TYPE)) {
+                // target wants a file
 
-            // get actual mime type
-            auto fileMimeType = request->GetString(K_FIELD_FILETYPES, 0);
-            printf("target requesting file mime type: [%s]\n", fileMimeType);
+                // get actual mime type
+                auto fileMimeType = request->GetString(K_FIELD_FILETYPES, 0);
+                printf("target requesting file mime type: [%s]\n", fileMimeType);
 
-            entry_ref dirRef;
-            const char *filename;
-            if (request->FindRef("directory", &dirRef) == B_OK
-                    && request->FindString("name", &filename) == B_OK)
-            {
-                BDirectory bDir(&dirRef);
-                BFile outFile(&bDir, filename, B_CREATE_FILE | B_WRITE_ONLY);
-                finalizer->finalizeDrop(action, fileMimeType, &outFile);
-                printf("wrote file for recipient!\n");
+                entry_ref dirRef;
+                const char *filename;
+                if (request->FindRef("directory", &dirRef) == B_OK
+                        && request->FindString("name", &filename) == B_OK)
+                {
+                    BDirectory bDir(&dirRef);
+                    BFile outFile(&bDir, filename, B_CREATE_FILE | B_WRITE_ONLY);
+                    finalizer->finalizeDrop(action, fileMimeType, &outFile);
+                    printf("wrote file for recipient!\n");
 
-                // force mimetype on file because Tracker seems to set it inconsistently ...
-                //  (eg. text/plain works but text/x-vnd.Be-stxt does not)
-                BNodeInfo nodeInfo(&outFile);
-                nodeInfo.SetType(fileMimeType);
+                    // force mimetype on file because Tracker seems to set it inconsistently ...
+                    //  (eg. text/plain works but text/x-vnd.Be-stxt does not)
+                    BNodeInfo nodeInfo(&outFile);
+                    nodeInfo.SetType(fileMimeType);
+
+                    return (DragResult)action;
+                } else {
+                    printf("didn't find required directory + name in file request\n");
+                }
             } else {
-                printf("didn't find required directory + name in file request\n");
+                // direct send via message
+                BMallocIO outStream;
+                outStream.SetBlockSize(16 * 1024);
+
+                finalizer->finalizeDrop(action, mimeType, &outStream);
+
+                auto reply = new BMessage(B_MIME_DATA);
+                reply->AddData(mimeType, B_MIME_DATA, outStream.Buffer(), outStream.BufferLength());
+
+                request->SendReply(reply);
+                printf("direct msg data sent!\n");
+
+                return (DragResult)action;
             }
-        } else {
-            // direct send via message
-            BMallocIO outStream;
-            outStream.SetBlockSize(16 * 1024);
-
-            finalizer->finalizeDrop(action, mimeType, &outStream);
-
-            auto reply = new BMessage(B_MIME_DATA);
-            reply->AddData(mimeType, B_MIME_DATA, outStream.Buffer(), outStream.BufferLength());
-
-            request->SendReply(reply);
-            printf("direct msg data sent!\n");
         }
     }
 
-    // propagate action back to view, so it can update the status
+    // if it got here, things didn't go well
+    return DragResult::Failed;
 }
 
 

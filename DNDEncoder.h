@@ -30,5 +30,13 @@ public:
     void addBitmap(const char *path);
     void addFileContents(FileContent_t *files, int numFiles);
 
-    void finalizeDrop(BMessage *msg); // handle the incoming negotiation message
+    // returns one of B_TARGET_COPY / _MOVE / etc
+    enum DragResult : int32 {
+        Failed,
+        Copied = B_COPY_TARGET,
+        Moved = B_MOVE_TARGET,
+        Linked = B_LINK_TARGET,
+        Trashed = B_TRASH_TARGET,
+    };
+    DragResult finalizeDrop(BMessage *msg); // handle the incoming negotiation message
 };
