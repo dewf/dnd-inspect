@@ -1,6 +1,8 @@
 #include "DropDialog.h"
 
+#include <LayoutBuilder.h>
 #include <GroupLayout.h>
+#include <CardLayout.h>
 #include <MimeType.h>
 #include <StorageKit.h>
 
@@ -33,44 +35,83 @@ BRect centeredRect(BWindow *centerOn, int width, int height)
     return BRect(cx, cy, cx + width, cy + height);
 }
 
+void addButtons(BGroupLayout *group, bool forFilePanel = false)
+{
+    auto hbox = new BGroupLayout(B_HORIZONTAL);
+    group->AddItem(hbox);
+
+    hbox->AddView(new BButton("Copy"));
+    hbox->AddView(new BButton("Move"));
+    hbox->AddView(new BButton("Link"));
+    hbox->AddView(new BButton("Trash"));
+}
+
 DropDialog::DropDialog(BWindow *centerOn, BMessage *dropMsg)
-    :BWindow(centeredRect(centerOn, 350, 300), "Drop Parameters", B_TITLED_WINDOW_LOOK, B_MODAL_APP_WINDOW_FEEL, 0),
+    :BWindow(centeredRect(centerOn, 350, 200), "Drop Parameters", B_TITLED_WINDOW_LOOK, B_MODAL_APP_WINDOW_FEEL, 0),
       dropMsg(dropMsg)
 {
-    auto layout = new BGroupLayout(B_VERTICAL, 0);
-    SetLayout(layout);
-
     typesMenu = new BPopUpMenu("(choose drop data type)");
     typeChooser = new BMenuField("Data Type", typesMenu);
-    layout->AddView(typeChooser);
 
-    dropAsFile = new BCheckBox("Drop as file", new BMessage(K_DROP_AS_FILE_CHECK));
-    layout->AddView(dropAsFile);
+    //dropAsFile = new BCheckBox("Drop as file", new BMessage(K_DROP_AS_FILE_CHECK));
 
     fileTypesMenu = new BPopUpMenu("(choose file data type)");
     fileTypeChooser = new BMenuField("File Type", fileTypesMenu);
-    //fileTypeChooser->SetEnabled(false); // disabled until user chooses "drop as file" in data type above
-    layout->AddView(fileTypeChooser);
 
     // choose file button
-    chooseFileButton = new BButton("Choose file...\n", new BMessage(K_OPEN_FILE_CHOOSER));
-    layout->AddView(chooseFileButton);
+    chooseFileButton = new BButton("Pick...\n", new BMessage(K_OPEN_FILE_CHOOSER));
+    selectedPathLabel = new BStringView("path-label", "(no file selected)");
 
     actionMenu = new BPopUpMenu("(choose drop action)");
     actionChooser = new BMenuField("Drop Action", actionMenu);
-    layout->AddView(actionChooser);
-
-    layout->AddItem(BSpaceLayoutItem::CreateGlue());
 
     // cancel / go buttons
     auto buttonsLayout = new BGroupLayout(B_HORIZONTAL);
-    layout->AddItem(buttonsLayout);
-
     auto cancelButton = new BButton("Cancel", new BMessage(B_QUIT_REQUESTED));
     auto dropButton = new BButton("Drop", new BMessage(K_OK_PRESSED));
-    buttonsLayout->AddItem(BSpaceLayoutItem::CreateGlue());
-    buttonsLayout->AddView(cancelButton);
-    buttonsLayout->AddView(dropButton);
+
+    // layout ========================================
+    auto group = new BGroupLayout(B_VERTICAL);
+    SetLayout(group);
+    //group->SetInsets(0);
+
+    // tab area for data/file drop choice
+    auto tabView = new BTabView("tabview");
+
+    auto r = tabView->Bounds();
+    r.bottom -= tabView->TabHeight(); // essentially adjusting the height, not bottom per se
+
+    // data drop tab
+    auto dataDropView = new BGroupView(B_VERTICAL);
+    dataDropView->GroupLayout()->SetInsets(4);
+    dataDropView->AddChild(typeChooser);
+    dataDropView->AddChild(BSpaceLayoutItem::CreateGlue());
+
+    addButtons(dataDropView->GroupLayout());
+
+    auto tab = new BTab();
+    tabView->AddTab(dataDropView, tab);
+    tab->SetLabel("Data Drop");
+
+    // file drop tab
+    auto fileDropView = new BGroupView(B_VERTICAL);
+    fileDropView->GroupLayout()->SetInsets(4);
+    fileDropView->AddChild(fileTypeChooser);
+       auto hbox = new BGroupView(B_HORIZONTAL);
+       hbox->AddChild(BSpaceLayoutItem::CreateGlue());
+       hbox->AddChild(selectedPathLabel);
+       hbox->AddChild(chooseFileButton);
+    fileDropView->AddChild(hbox);
+    fileDropView->AddChild(BSpaceLayoutItem::CreateGlue());
+
+    addButtons(fileDropView->GroupLayout());
+
+    tab = new BTab();
+    tabView->AddTab(fileDropView, tab);
+    tab->SetLabel("File Drop");
+
+    //
+    group->AddView(tabView);
 
     // now actually fill and config those controls based on what was in the message
     configure();
@@ -103,13 +144,13 @@ void DropDialog::MessageReceived(BMessage *msg)
         selectedType = msg->GetString(K_FIELD_DEFAULT);
         break;
     }
-    case K_DROP_AS_FILE_CHECK:
-    {
-        auto state = dropAsFile->Value() == B_CONTROL_ON;
-        typeChooser->SetEnabled(!state); // disable (or enable) normal types
-        fileTypeChooser->SetEnabled(state); // enalbe (or disable) file types
-        break;
-    }
+//    case K_DROP_AS_FILE_CHECK:
+//    {
+//        auto state = dropAsFile->Value() == B_CONTROL_ON;
+//        typeChooser->SetEnabled(!state); // disable (or enable) normal types
+//        fileTypeChooser->SetEnabled(state); // enalbe (or disable) file types
+//        break;
+//    }
     case K_FILETYPES_MENU_SELECT:
     {
         selectedFileType = msg->GetString(K_FIELD_DEFAULT);
@@ -153,7 +194,7 @@ void DropDialog::MessageReceived(BMessage *msg)
         msg->FindRef("directory", &directory);
         auto name = msg->GetString("name");
         BPath path(new BDirectory(&directory), name);
-        printf("you want to save to: [%s]\n", path.Path());
+        selectedPathLabel->SetText(path.Path());
         // directory = entry ref
         // name = string
         break;

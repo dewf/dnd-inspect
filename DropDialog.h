@@ -9,6 +9,7 @@ class BCheckBox;
 class BButton;
 class BFilePanel;
 class BPopUpMenu;
+class BStringView;
 
 class DropDialog : public BWindow
 {
@@ -20,13 +21,13 @@ class DropDialog : public BWindow
     BMenuField *typeChooser = nullptr;
     std::string selectedType; // can't use char* because the BMessage we're getting from has a finite lifespan
 
-    BCheckBox *dropAsFile = nullptr;
-    BButton *chooseFileButton = nullptr;
-    BFilePanel *filePanel = nullptr;
-
     BPopUpMenu *fileTypesMenu = nullptr;
     BMenuField *fileTypeChooser = nullptr;
-    std::string selectedFileType;
+    std::string selectedFileType; // see note on selectedType above
+
+    BButton *chooseFileButton = nullptr;
+    BFilePanel *filePanel = nullptr;
+    BStringView *selectedPathLabel = nullptr;
 
     BPopUpMenu *actionMenu = nullptr;
     BMenuField *actionChooser = nullptr;
