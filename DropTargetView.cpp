@@ -12,7 +12,6 @@
 
 #include <assert.h>
 
-
 class DroppableTextView : public BTextView
 {
     static const size_t LOG_BUFFER_SIZE = 64 * 1024;
@@ -104,7 +103,7 @@ public:
                 BMessage *negotiationMsg;
                 if (dd->GenerateResponse(&negotiationMsg)) {
 
-                    msg->SendReply(negotiationMsg, BMessenger(this));
+                    msg->SendReply(negotiationMsg, this);
 
                     delete negotiationMsg;
                 } else {
