@@ -266,16 +266,21 @@ DNDEncoder::DragResult DNDEncoder::finalizeDrop(BMessage *request)
     }
     printf("negotiated action is %s\n", getActionString(action));
 
-    // direct message or file?
-    // plus we need to verify that we even offered to send it that way ...
-    printf("=======\n");
-    request->PrintToStream();
-    printf("=======\n");
+//    // direct message or file?
+//    // plus we need to verify that we even offered to send it that way ...
+//    printf("=======\n");
+//    request->PrintToStream();
+//    printf("=======\n");
 
     if (action == B_TRASH_TARGET) {
         printf("destination requested we trash!\n");
         return DragResult::Trashed;
-    } else {
+    } else if (action == B_LINK_TARGET) {
+        printf("destination chose 'link' option\n");
+        // no idea what that means
+        return DragResult::Linked;
+    }
+    else {
         // copy / move / link
         if (request->HasString(K_FIELD_TYPES)) {
             auto mimeType = request->GetString(K_FIELD_TYPES, 0);
