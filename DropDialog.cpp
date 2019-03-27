@@ -209,6 +209,10 @@ void DropDialog::MessageReceived(BMessage *msg)
             BPath path(new BDirectory(&chosenDir), chosenFilename.c_str());
             chosenPathLabel->SetText(path.Path());
             fileBeenChosen = true;
+
+            // touch the file first (because that's how haiku's tracker works / what the 'dragme' app expected)
+            BDirectory dir(&chosenDir);
+            BFile file(&dir, chosenFilename.c_str(), B_CREATE_FILE | B_WRITE_ONLY);
         }
         break;
     }

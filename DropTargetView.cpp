@@ -122,16 +122,15 @@ public:
                 auto prev = msg->Previous();
 
                 auto mimeType = prev->GetString(K_FIELD_TYPES); // the type we originally requested
-                logPrintf("Received direct data drop [%s]", mimeType);
+                logPrintf("Receiving direct data drop - expecting [%s] ...\n", mimeType);
 
                 type_code typeCode;
                 const void *data;
                 ssize_t numBytes;
                 if (msg->FindData(mimeType, B_MIME_DATA, &data, &numBytes) == B_OK) {
-                    logPrintf("= payload size: %zu\n", numBytes);
+                    logPrintf(" = OK! payload size: %zu\n", numBytes);
                 } else {
-                    msg->PrintToStream();
-                    logPrintf("uuhh something doesn't match up\n");
+                    logPrintf(" = ERROR! didn't find the mime type we asked for [%s] in the received B_MIME_DATA message\n", mimeType);
                 }
             }
             break;
