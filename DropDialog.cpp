@@ -166,11 +166,18 @@ void DropDialog::MessageReceived(BMessage *msg)
         if (selected == dataTab) {
             negotiationMsg->AddString(K_FIELD_TYPES, selectedType.c_str());
         } else {
-            negotiationMsg->AddString(K_FIELD_TYPES, B_FILE_MIME_TYPE);
-            negotiationMsg->AddString(K_FIELD_FILETYPES, selectedFileType.c_str());
-            negotiationMsg->AddRef("directory", &chosenDir);
-            negotiationMsg->AddString("name", chosenFilename.c_str());
-            negotiationMsg->PrintToStream();
+            // has the fild been chosen yet?
+            if (!fileBeenChosen) {
+                auto alert = new BAlert("Error", "You must select a destination file.", "OK");
+                alert->SetShortcut(0, B_ESCAPE);
+                alert->Go();
+                return; // don't close dialog yet
+            } else {
+                negotiationMsg->AddString(K_FIELD_TYPES, B_FILE_MIME_TYPE);
+                negotiationMsg->AddString(K_FIELD_FILETYPES, selectedFileType.c_str());
+                negotiationMsg->AddRef("directory", &chosenDir);
+                negotiationMsg->AddString("name", chosenFilename.c_str());
+            }
         }
         // close the dialog
         PostMessage(B_QUIT_REQUESTED);
@@ -201,7 +208,7 @@ void DropDialog::MessageReceived(BMessage *msg)
             // update label
             BPath path(new BDirectory(&chosenDir), chosenFilename.c_str());
             chosenPathLabel->SetText(path.Path());
-            // enable the buttons that need to be enabled ...
+            fileBeenChosen = true;
         }
         break;
     }

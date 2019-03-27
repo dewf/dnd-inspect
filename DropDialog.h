@@ -41,6 +41,7 @@ class DropDialog : public BWindow
     BStringView *chosenPathLabel = nullptr;
     entry_ref chosenDir;
     std::string chosenFilename;
+    bool fileBeenChosen = false;
     ActionButtons fileActionButtons;
 
     BPopUpMenu *actionMenu = nullptr;
