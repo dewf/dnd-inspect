@@ -2,6 +2,7 @@
 
 #include <AppKit.h>
 #include <InterfaceKit.h>
+#include <LayoutBuilder.h>
 #include <TabView.h>
 
 #include <stdio.h>
@@ -38,48 +39,41 @@ void MainWindow::MessageReceived(BMessage *message)
     }
 }
 
-BRect getCenterRect(int width, int height)
-{
-    BScreen screen;
-    auto frame = screen.Frame();
-    auto x = (frame.Width() - width) / 2;
-    auto y = (frame.Height() - height) / 2;
-    return BRect(x, y, x + width, y + height);
-}
-
 MainWindow::MainWindow()
-    :BWindow(getCenterRect(500, 600), "DND Inspector", B_DOCUMENT_WINDOW, 0 /*B_QUIT_ON_WINDOW_CLOSE*/)
+    :BWindow(BRect(0, 0, 300, 400), "DND Inspector", B_TITLED_WINDOW, 0 /*B_QUIT_ON_WINDOW_CLOSE*/)
 {
+    CenterOnScreen();
+
     // menu
-    auto menuBar = new BMenuBar(Bounds(), "menubar");
+    auto menuBar = new BMenuBar("menubar");
     auto fileMenu = new BMenu("File");
-    fileMenu->AddItem(new BMenuItem("New Window", new BMessage(K_NEW_WINDOW_MSG)));
-    fileMenu->AddItem(new BMenuItem("Quit", new BMessage(K_QUIT_APP_MSG), 'Q', B_COMMAND_KEY));
+    fileMenu->AddItem(new BMenuItem("New window", new BMessage(K_NEW_WINDOW_MSG), 'N'));
+    fileMenu->AddItem(new BMenuItem("Quit", new BMessage(K_QUIT_APP_MSG), 'Q'));
     menuBar->AddItem(new BMenuItem(fileMenu));
-    AddChild(menuBar);
-
-    auto menuHeight = menuBar->PreferredSize().Height() + 1;
-
-    auto bounds = Bounds();
-    bounds.top += menuHeight;
 
     // content
-    auto tabView = new BTabView(bounds, "tabview");
+    auto tabView = new BTabView("tabview");
 
-    auto r = tabView->Bounds();
-    r.bottom -= tabView->TabHeight(); // essentially adjusting the height, not bottom per se
-
-    dragSourceView = new DragSourceView(r);
+    dragSourceView = new DragSourceView();
     auto tab = new BTab();
     tabView->AddTab(dragSourceView, tab);
-    tab->SetLabel("Drag Source");
+    tab->SetLabel("Drag source");
 
-    dropTargetView = new DropTargetView(r);
+    dropTargetView = new DropTargetView();
     auto tab2 = new BTab();
     tabView->AddTab(dropTargetView, tab2);
-    tab2->SetLabel("Drop Target");
+    tab2->SetLabel("Drop target");
 
-    AddChild(tabView);
+	tabView->SetBorder(B_NO_BORDER);
+
+	BLayoutBuilder::Group<>(this, B_VERTICAL, 1)
+		.Add(menuBar)
+		.Add(BSpaceLayoutItem::CreateVerticalStrut(B_USE_HALF_ITEM_SPACING))
+		.AddGroup(B_VERTICAL)
+			.SetInsets(-2)	// to remove the spacing around the tab view
+			.Add(tabView);
+
+	SetSizeLimits(250, B_SIZE_UNLIMITED, 100, B_SIZE_UNLIMITED);
 
     numWindowsOpen++;
 }

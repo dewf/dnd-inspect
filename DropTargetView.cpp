@@ -1,5 +1,6 @@
 #include "DropTargetView.h"
 
+#include <LayoutBuilder.h>
 #include <InterfaceKit.h>
 #include <StorageKit.h>
 
@@ -17,8 +18,11 @@ class DroppableTextView : public BTextView
     static const size_t LOG_BUFFER_SIZE = 64 * 1024;
     char buffer[LOG_BUFFER_SIZE];
 public:
-    DroppableTextView(BRect r, const char *name)
-        :BTextView(r, name, r.InsetByCopy(2, 2), B_FOLLOW_ALL) {}
+    DroppableTextView(const char *name)
+        :BTextView(name) {
+		BRect rect = Bounds();
+		SetTextRect(rect.InsetByCopy(7, 1));
+	}
 
     void logPrintf(const char *format, ...) {
         va_list args;
@@ -141,11 +145,13 @@ public:
     }
 };
 
-DropTargetView::DropTargetView(BRect r)
-    :BView(r, "droptarget", B_FOLLOW_ALL, 0)
+DropTargetView::DropTargetView()
+    :BView("droptarget", B_WILL_DRAW, new BGroupLayout(B_VERTICAL, B_USE_DEFAULT_SPACING))
 {
     AdoptSystemColors();
 
-    logArea = new DroppableTextView(r, "log");
-    AddChild(logArea);
+    logArea = new DroppableTextView("log");
+    auto scroll = new BScrollView("scrollview", logArea, B_WILL_DRAW, false, true);
+
+    AddChild(scroll);
 }

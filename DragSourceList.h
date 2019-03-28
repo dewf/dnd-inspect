@@ -11,7 +11,7 @@ class DragSourceList : public BListView
 
     void MessageReceived(BMessage *message) override;
 public:
-    DragSourceList(BRect r);
+    DragSourceList();
 
     void MouseDown(BPoint where) override;
     bool InitiateDrag(BPoint point, int32 index, bool wasSelected) override;

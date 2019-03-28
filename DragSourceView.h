@@ -5,5 +5,5 @@
 class DragSourceView : public BView
 {
 public:
-    DragSourceView(BRect r);
+    DragSourceView();
 };

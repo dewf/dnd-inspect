@@ -8,5 +8,5 @@ class DropTargetView : public BView
 {
     DroppableTextView *logArea = nullptr;
 public:
-    DropTargetView(BRect r);
+    DropTargetView();
 };
