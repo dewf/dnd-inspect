@@ -28,42 +28,35 @@ enum IntConstants : int32 {
     K_THREAD_NOTIFY
 };
 
-BRect centeredRect(BWindow *centerOn, int width, int height)
-{
-    auto winScreenBounds = centerOn->ConvertToScreen(centerOn->Bounds());
-    auto cx = winScreenBounds.left + (winScreenBounds.Width() - width) / 2;
-    auto cy = winScreenBounds.top + (winScreenBounds.Height() - height) / 2;
-    return BRect(cx, cy, cx + width, cy + height);
-}
-
-BButton *addActionButton(BGroupLayout *hbox, const char *label, int32 action)
+BButton *addActionButton(const char *label, int32 action)
 {
     auto msg = new BMessage(K_CLICKED_ACTION);
     msg->SetInt32(K_FIELD_DEFAULT, action);
     auto button = new BButton(label, msg);
     button->SetEnabled(false);
-    hbox->AddView(button);
     return button;
 }
 
 DropDialog::DropDialog(BWindow *centerOn, BMessage *dropMsg)
-    :BWindow(centeredRect(centerOn, 350, 200), "Drop Parameters", B_TITLED_WINDOW_LOOK, B_MODAL_APP_WINDOW_FEEL, 0),
+    :BWindow(BRect(0, 0, 400, 200), "Drop parameters", B_TITLED_WINDOW_LOOK, B_MODAL_APP_WINDOW_FEEL, 0),
       dropMsg(dropMsg)
 {
+	CenterIn(centerOn->Frame());
+
     typesMenu = new BPopUpMenu("(choose drop data type)");
-    typeChooser = new BMenuField("Data Type", typesMenu);
+    typeChooser = new BMenuField("Data type:", typesMenu);
 
     //dropAsFile = new BCheckBox("Drop as file", new BMessage(K_DROP_AS_FILE_CHECK));
 
     fileTypesMenu = new BPopUpMenu("(choose file data type)");
-    fileTypeChooser = new BMenuField("File Type", fileTypesMenu);
+    fileTypeChooser = new BMenuField("File type:", fileTypesMenu);
 
     // choose file button
-    chooseFileButton = new BButton("Pick...\n", new BMessage(K_OPEN_FILE_CHOOSER));
+    chooseFileButton = new BButton("Pick" B_UTF8_ELLIPSIS, new BMessage(K_OPEN_FILE_CHOOSER));
     chosenPathLabel = new BStringView("path-label", "(no file selected)");
 
     actionMenu = new BPopUpMenu("(choose drop action)");
-    actionChooser = new BMenuField("Drop Action", actionMenu);
+    actionChooser = new BMenuField("Drop action", actionMenu);
 
     // cancel / go buttons
     auto buttonsLayout = new BGroupLayout(B_HORIZONTAL);
@@ -71,57 +64,74 @@ DropDialog::DropDialog(BWindow *centerOn, BMessage *dropMsg)
     auto dropButton = new BButton("Drop", new BMessage(K_OK_PRESSED));
 
     // layout ========================================
-    auto group = new BGroupLayout(B_VERTICAL);
-    SetLayout(group);
-    //group->SetInsets(0);
 
     // tab area for data/file drop choice
     tabView = new BTabView("tabview");
 
-    auto r = tabView->Bounds();
-    r.bottom -= tabView->TabHeight(); // essentially adjusting the height, not bottom per se
-
     // data drop tab
-    auto dataDropView = new BGroupView(B_VERTICAL);
-    dataDropView->GroupLayout()->SetInsets(4);
-    dataDropView->AddChild(typeChooser);
-    dataDropView->AddChild(BSpaceLayoutItem::CreateGlue());
+	dataActionButtons.copy = addActionButton("Copy", B_COPY_TARGET);
+    dataActionButtons.move = addActionButton("Move", B_MOVE_TARGET);
+    dataActionButtons.link = addActionButton("Link", B_LINK_TARGET);
+    dataActionButtons.trash = addActionButton("Trash", B_TRASH_TARGET);
 
-    auto hbox1 = new BGroupLayout(B_HORIZONTAL);
-    dataDropView->AddChild(hbox1);
-    dataActionButtons.copy = addActionButton(hbox1, "Copy", B_COPY_TARGET);
-    dataActionButtons.move = addActionButton(hbox1, "Move", B_MOVE_TARGET);
-    dataActionButtons.link = addActionButton(hbox1, "Link", B_LINK_TARGET);
-    dataActionButtons.trash = addActionButton(hbox1, "Trash", B_TRASH_TARGET);
+	auto dataDropView = new BView("data", B_SUPPORTS_LAYOUT);
+	dataDropView = BLayoutBuilder::Group<>(B_VERTICAL)
+		.SetInsets(B_USE_WINDOW_INSETS)
+		.Add(typeChooser)
+		.Add(BSpaceLayoutItem::CreateVerticalStrut(B_USE_BIG_SPACING))
+		.AddGroup(B_HORIZONTAL)
+			.AddGlue()
+			.Add(dataActionButtons.copy)
+			.Add(dataActionButtons.move)
+			.Add(dataActionButtons.link)
+			.Add(dataActionButtons.trash)
+			.AddGlue()
+			.End()
+		.AddGlue()
+		.View();
 
     dataTab = new BTab();
     tabView->AddTab(dataDropView, dataTab);
-    dataTab->SetLabel("Data Drop");
+    dataTab->SetLabel("Data drop");
 
     // file drop tab
-    auto fileDropView = new BGroupView(B_VERTICAL);
-    fileDropView->GroupLayout()->SetInsets(4);
-    fileDropView->AddChild(fileTypeChooser);
-       auto hbox = new BGroupView(B_HORIZONTAL);
-       hbox->AddChild(BSpaceLayoutItem::CreateGlue());
-       hbox->AddChild(chosenPathLabel);
-       hbox->AddChild(chooseFileButton);
-    fileDropView->AddChild(hbox);
-    fileDropView->AddChild(BSpaceLayoutItem::CreateGlue());
+    fileActionButtons.copy = addActionButton("Copy", B_COPY_TARGET);
+    fileActionButtons.move = addActionButton("Move", B_MOVE_TARGET);
+    fileActionButtons.link = addActionButton("Link", B_LINK_TARGET);
+    fileActionButtons.trash = addActionButton("Trash", B_TRASH_TARGET);
 
-    auto hbox2 = new BGroupLayout(B_HORIZONTAL);
-    fileDropView->AddChild(hbox2);
-    fileActionButtons.copy = addActionButton(hbox2, "Copy", B_COPY_TARGET);
-    fileActionButtons.move = addActionButton(hbox2, "Move", B_MOVE_TARGET);
-    fileActionButtons.link = addActionButton(hbox2, "Link", B_LINK_TARGET);
-    fileActionButtons.trash = addActionButton(hbox2, "Trash", B_TRASH_TARGET);
+	auto fileDropView = new BView("file", B_SUPPORTS_LAYOUT);
+	fileDropView = BLayoutBuilder::Group<>(B_VERTICAL)
+		.SetInsets(B_USE_WINDOW_INSETS)
+		.Add(fileTypeChooser)
+		.AddGroup(B_HORIZONTAL)
+			.AddGlue()
+			.Add(chosenPathLabel)
+			.Add(chooseFileButton)
+			.End()
+		.Add(BSpaceLayoutItem::CreateVerticalStrut(B_USE_BIG_SPACING))
+		.AddGroup(B_HORIZONTAL)
+			.AddGlue()
+			.Add(fileActionButtons.copy)
+			.Add(fileActionButtons.move)
+			.Add(fileActionButtons.link)
+			.Add(fileActionButtons.trash)
+			.AddGlue()
+			.End()
+		.AddGlue()
+		.View();
 
     fileTab = new BTab();
     tabView->AddTab(fileDropView, fileTab);
-    fileTab->SetLabel("File Drop");
+    fileTab->SetLabel("File drop");
 
     //
-    group->AddView(tabView);
+	BLayoutBuilder::Group<>(this, B_VERTICAL, 1)
+		.Add(BSpaceLayoutItem::CreateVerticalStrut(B_USE_HALF_ITEM_SPACING))
+		.AddGroup(B_VERTICAL)
+			.SetInsets(-2)	// to remove the spacing around the tab view
+			.Add(tabView)
+			.End();
 
     // now actually fill and config those controls based on what was in the message
     configure();
@@ -195,6 +205,7 @@ void DropDialog::MessageReceived(BMessage *msg)
                     nullptr,
                     true, // modal
                     true); // hide when done
+		filePanel->Window()->SetTitle("Pick a file");
         filePanel->Show();
 
         break;

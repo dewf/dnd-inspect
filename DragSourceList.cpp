@@ -88,8 +88,8 @@ void DragSourceList::MessageReceived(BMessage *message)
     }
 }
 
-DragSourceList::DragSourceList(BRect r)
-    :BListView(r, "list", B_SINGLE_SELECTION_LIST, B_FOLLOW_ALL)
+DragSourceList::DragSourceList()
+    :BListView("list")
 {
     auto count = sizeof(items) / sizeof(formatItem_t);
     for (int i=0; i< count; i++) {

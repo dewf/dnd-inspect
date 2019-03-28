@@ -1,7 +1,7 @@
 #include "DragSourceView.h"
 
 #include <MenuBar.h>
-
+#include <LayoutBuilder.h>
 #include <ListView.h>
 #include <ScrollView.h>
 
@@ -9,17 +9,12 @@
 
 #include "DragSourceList.h"
 
-DragSourceView::DragSourceView(BRect r)
-    :BView(r, "drag_source", B_FOLLOW_ALL, 0)
+DragSourceView::DragSourceView()
+    :BView("drag_source", B_WILL_DRAW , new BGroupLayout(B_VERTICAL, B_USE_DEFAULT_SPACING))
 {
     AdoptSystemColors();
 
-    r = Bounds();
-    r.InsetBy(10, 10);
-    r.right -= 22;
-    r.bottom -= 10;
-    // no flippin' idea, none of these bounds make sense :(
-    auto list = new DragSourceList(r);
+    auto list = new DragSourceList();
 
 //    for(int i=0; i< 10; i++) {
 //        char buffer[1024];
@@ -27,6 +22,6 @@ DragSourceView::DragSourceView(BRect r)
 //        list->AddItem(new BStringItem(buffer));
 //    }
 
-    auto scroll = new BScrollView("scrollview", list, B_FOLLOW_ALL, 0, false, true);
+    auto scroll = new BScrollView("scrollview", list, B_WILL_DRAW, false, true);
     AddChild(scroll);
 }
