@@ -143,7 +143,8 @@ bool DropDialog::GenerateResponse(BMessage **negotiationMsg)
     Show();
 
     thread_id sender;
-    while(receive_data(&sender, nullptr, 0) != K_THREAD_NOTIFY) {
+    char buffer[64]; // not used, but currently necessary: https://review.haiku-os.org/c/haiku/+/1333
+    while(receive_data(&sender, buffer, 64) != K_THREAD_NOTIFY) {
         printf("drop dialog - ShowAndWait received spurious msg\n");
     }
 
@@ -235,7 +236,8 @@ void DropDialog::MessageReceived(BMessage *msg)
 bool DropDialog::QuitRequested()
 {
     // notify the caller of GenerateResponse() that we're done (whether by OK or Cancel)
-    send_data(waitingThread, K_THREAD_NOTIFY, nullptr, 0);
+    char buffer[64]; // not used, but currently necessary: https://review.haiku-os.org/c/haiku/+/1333
+    send_data(waitingThread, K_THREAD_NOTIFY, buffer, 64);
 
     return true; // yes, please close window / end thread
 }
