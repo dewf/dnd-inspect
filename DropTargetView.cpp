@@ -79,7 +79,9 @@ public:
                     logPrintf(" - %s\n", path.Path());
                 }
             }
+            return true;
         }
+        return false;
     }
 
     void dumpSimpleDrop(BMessage *msg) {
